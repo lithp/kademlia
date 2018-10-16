@@ -11,7 +11,14 @@ from protobuf.rpc_pb2 import Message, Ping
 def newnonce():
     return random.getrandbits(160).to_bytes(20, byteorder='big')
 
+def isresponse(message):
+    responses = ['pong', 'storeResponse', 'findNodeResponse', 'foundValue']
+    return any(message.HasField(response) for response in responses)
+
 class Protocol(asyncio.DatagramProtocol):
+
+    def __init__(self):
+        self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
 
     def connection_made(self, transport):
         self.transport = transport
@@ -24,6 +31,20 @@ class Protocol(asyncio.DatagramProtocol):
             print(f"received malformed data from {addr}")
             print(data)
             return
+
+        # TODO: tell the routing table about message.sender
+
+        if isresponse(message):
+            nonce = message.nonce
+            if nonce not in self.outstanding_requests:
+                print(f"received a message but the nonce is not recognized")
+                return
+
+            future = self.outstanding_requests.pop(nonce)
+            future.set_result(message)
+            return
+
+        # If it's a request, call the appropriate handler!
 
         # We're throwing away addr but it seems useful.
 
@@ -41,6 +62,12 @@ class Protocol(asyncio.DatagramProtocol):
         hexed = binascii.hexlify(ping.SerializeToString())
         print(hexed)
         self.transport.sendto(hexed, addr)
+
+    # Futures
+
+    def register_nonce(self, nonce, future):
+        assert(nonce not in self.outstanding_requests)
+        self.outstanding_requests[nonce] = future
 
     # Requests
 
@@ -63,6 +90,7 @@ class Protocol(asyncio.DatagramProtocol):
         pass
 
     def find_value_received(self, message):
+        # if we have the value locally reply with a FoundValue
         pass
 
     # Responses
@@ -110,9 +138,10 @@ class Server:
 
     def __init__(self):
         self.transport = None
+        self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
 
     async def listen(self, port):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         local_addr = ('localhost', port)
 
         endpoint = loop.create_datagram_endpoint(
@@ -123,6 +152,33 @@ class Server:
     def stop(self):
         if self.transport:
             self.transport.close()
+            self.transport = None
+
+    async def send(self, message, addr):
+        '''
+        1. Create a future and associate it with the nonce, so that when we get a response
+           we 
+        2. return the future
+        3. Later, the Protocol will alert us that a message has arrived
+           (and we'll set the Future)
+        '''
+        if not self.transport:
+            raise Exception('the server is not running yet!')
+
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+
+        # when a response come in with this nonce the protocol will trigger the future
+        nonce = message.nonce
+        self.protocol.register_nonce(nonce, future)
+
+        # TODO: where do we check that the message is not too large?
+        serialized = message.SerializeToString()
+        await self.transport.sendto(serialized, addr)
+
+        # TODO: also timeout if we haven't received a response in x seconds
+        # TODO: when a timeout happens, alert the RoutingTable so we mark this node flaky
+        return future
 
 async def main():
 

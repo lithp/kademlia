@@ -18,7 +18,7 @@ _sym_db = _symbol_database.Default()
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='rpc.proto',
   package='',
-  serialized_pb=_b('\n\trpc.proto\"C\n\x04Node\x12\n\n\x02ip\x18\x01 \x02(\t\x12\x0c\n\x04port\x18\x02 \x02(\r\x12\x0e\n\x06nodeid\x18\x03 \x02(\x0c\x12\x11\n\tpublickey\x18\x04 \x01(\x0c\"\x06\n\x04Ping\"\x06\n\x04Pong\"#\n\x05Store\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\"\x17\n\x08\x46indNode\x12\x0b\n\x03key\x18\x01 \x02(\x0c\"\x18\n\tFindValue\x12\x0b\n\x03key\x18\x01 \x02(\x0c\"(\n\nFoundValue\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\",\n\x10\x46indNodeResponse\x12\x18\n\tneighbors\x18\x01 \x03(\x0b\x32\x05.Node\"\xa4\x02\n\x07Message\x12\x15\n\x06sender\x18\x01 \x02(\x0b\x32\x05.Node\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x12\r\n\x05nonce\x18\x03 \x02(\x04\x12\x15\n\x04ping\x18\x04 \x01(\x0b\x32\x05.PingH\x00\x12\x15\n\x04pong\x18\x05 \x01(\x0b\x32\x05.PongH\x00\x12\x17\n\x05store\x18\x06 \x01(\x0b\x32\x06.StoreH\x00\x12\x1d\n\x08\x66indNode\x18\x07 \x01(\x0b\x32\t.FindNodeH\x00\x12-\n\x10\x66indNodeResponse\x18\x08 \x01(\x0b\x32\x11.FindNodeResponseH\x00\x12\x1f\n\tfindValue\x18\t \x01(\x0b\x32\n.FindValueH\x00\x12!\n\nfoundValue\x18\n \x01(\x0b\x32\x0b.FoundValueH\x00\x42\x07\n\x05inner')
+  serialized_pb=_b('\n\trpc.proto\"C\n\x04Node\x12\n\n\x02ip\x18\x01 \x02(\t\x12\x0c\n\x04port\x18\x02 \x02(\r\x12\x0e\n\x06nodeid\x18\x03 \x02(\x0c\x12\x11\n\tpublickey\x18\x04 \x01(\x0c\"\x06\n\x04Ping\"\x06\n\x04Pong\"#\n\x05Store\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\"\x0f\n\rStoreResponse\"\x17\n\x08\x46indNode\x12\x0b\n\x03key\x18\x01 \x02(\x0c\"\x18\n\tFindValue\x12\x0b\n\x03key\x18\x01 \x02(\x0c\"(\n\nFoundValue\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\",\n\x10\x46indNodeResponse\x12\x18\n\tneighbors\x18\x01 \x03(\x0b\x32\x05.Node\"\xcd\x02\n\x07Message\x12\x15\n\x06sender\x18\x01 \x02(\x0b\x32\x05.Node\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x12\r\n\x05nonce\x18\x03 \x02(\x0c\x12\x15\n\x04ping\x18\x04 \x01(\x0b\x32\x05.PingH\x00\x12\x15\n\x04pong\x18\x05 \x01(\x0b\x32\x05.PongH\x00\x12\x17\n\x05store\x18\x06 \x01(\x0b\x32\x06.StoreH\x00\x12\'\n\rstoreResponse\x18\x07 \x01(\x0b\x32\x0e.StoreResponseH\x00\x12\x1d\n\x08\x66indNode\x18\x08 \x01(\x0b\x32\t.FindNodeH\x00\x12-\n\x10\x66indNodeResponse\x18\t \x01(\x0b\x32\x11.FindNodeResponseH\x00\x12\x1f\n\tfindValue\x18\n \x01(\x0b\x32\n.FindValueH\x00\x12!\n\nfoundValue\x18\x0b \x01(\x0b\x32\x0b.FoundValueH\x00\x42\x07\n\x05inner')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -159,6 +159,29 @@ _STORE = _descriptor.Descriptor(
 )
 
 
+_STORERESPONSE = _descriptor.Descriptor(
+  name='StoreResponse',
+  full_name='StoreResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=135,
+  serialized_end=150,
+)
+
+
 _FINDNODE = _descriptor.Descriptor(
   name='FindNode',
   full_name='FindNode',
@@ -184,8 +207,8 @@ _FINDNODE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=135,
-  serialized_end=158,
+  serialized_start=152,
+  serialized_end=175,
 )
 
 
@@ -214,8 +237,8 @@ _FINDVALUE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=160,
-  serialized_end=184,
+  serialized_start=177,
+  serialized_end=201,
 )
 
 
@@ -251,8 +274,8 @@ _FOUNDVALUE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=186,
-  serialized_end=226,
+  serialized_start=203,
+  serialized_end=243,
 )
 
 
@@ -281,8 +304,8 @@ _FINDNODERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=228,
-  serialized_end=272,
+  serialized_start=245,
+  serialized_end=289,
 )
 
 
@@ -309,8 +332,8 @@ _MESSAGE = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='nonce', full_name='Message.nonce', index=2,
-      number=3, type=4, cpp_type=4, label=2,
-      has_default_value=False, default_value=0,
+      number=3, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -336,29 +359,36 @@ _MESSAGE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='findNode', full_name='Message.findNode', index=6,
+      name='storeResponse', full_name='Message.storeResponse', index=6,
       number=7, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='findNodeResponse', full_name='Message.findNodeResponse', index=7,
+      name='findNode', full_name='Message.findNode', index=7,
       number=8, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='findValue', full_name='Message.findValue', index=8,
+      name='findNodeResponse', full_name='Message.findNodeResponse', index=8,
       number=9, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='foundValue', full_name='Message.foundValue', index=9,
+      name='findValue', full_name='Message.findValue', index=9,
       number=10, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='foundValue', full_name='Message.foundValue', index=10,
+      number=11, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -377,8 +407,8 @@ _MESSAGE = _descriptor.Descriptor(
       name='inner', full_name='Message.inner',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=275,
-  serialized_end=567,
+  serialized_start=292,
+  serialized_end=625,
 )
 
 _FINDNODERESPONSE.fields_by_name['neighbors'].message_type = _NODE
@@ -386,6 +416,7 @@ _MESSAGE.fields_by_name['sender'].message_type = _NODE
 _MESSAGE.fields_by_name['ping'].message_type = _PING
 _MESSAGE.fields_by_name['pong'].message_type = _PONG
 _MESSAGE.fields_by_name['store'].message_type = _STORE
+_MESSAGE.fields_by_name['storeResponse'].message_type = _STORERESPONSE
 _MESSAGE.fields_by_name['findNode'].message_type = _FINDNODE
 _MESSAGE.fields_by_name['findNodeResponse'].message_type = _FINDNODERESPONSE
 _MESSAGE.fields_by_name['findValue'].message_type = _FINDVALUE
@@ -399,6 +430,9 @@ _MESSAGE.fields_by_name['pong'].containing_oneof = _MESSAGE.oneofs_by_name['inne
 _MESSAGE.oneofs_by_name['inner'].fields.append(
   _MESSAGE.fields_by_name['store'])
 _MESSAGE.fields_by_name['store'].containing_oneof = _MESSAGE.oneofs_by_name['inner']
+_MESSAGE.oneofs_by_name['inner'].fields.append(
+  _MESSAGE.fields_by_name['storeResponse'])
+_MESSAGE.fields_by_name['storeResponse'].containing_oneof = _MESSAGE.oneofs_by_name['inner']
 _MESSAGE.oneofs_by_name['inner'].fields.append(
   _MESSAGE.fields_by_name['findNode'])
 _MESSAGE.fields_by_name['findNode'].containing_oneof = _MESSAGE.oneofs_by_name['inner']
@@ -415,6 +449,7 @@ DESCRIPTOR.message_types_by_name['Node'] = _NODE
 DESCRIPTOR.message_types_by_name['Ping'] = _PING
 DESCRIPTOR.message_types_by_name['Pong'] = _PONG
 DESCRIPTOR.message_types_by_name['Store'] = _STORE
+DESCRIPTOR.message_types_by_name['StoreResponse'] = _STORERESPONSE
 DESCRIPTOR.message_types_by_name['FindNode'] = _FINDNODE
 DESCRIPTOR.message_types_by_name['FindValue'] = _FINDVALUE
 DESCRIPTOR.message_types_by_name['FoundValue'] = _FOUNDVALUE
@@ -448,6 +483,13 @@ Store = _reflection.GeneratedProtocolMessageType('Store', (_message.Message,), d
   # @@protoc_insertion_point(class_scope:Store)
   ))
 _sym_db.RegisterMessage(Store)
+
+StoreResponse = _reflection.GeneratedProtocolMessageType('StoreResponse', (_message.Message,), dict(
+  DESCRIPTOR = _STORERESPONSE,
+  __module__ = 'rpc_pb2'
+  # @@protoc_insertion_point(class_scope:StoreResponse)
+  ))
+_sym_db.RegisterMessage(StoreResponse)
 
 FindNode = _reflection.GeneratedProtocolMessageType('FindNode', (_message.Message,), dict(
   DESCRIPTOR = _FINDNODE,
