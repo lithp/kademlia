@@ -41,12 +41,17 @@ class Protocol(asyncio.DatagramProtocol):
             print(data)
             return
 
+        # TODO: Parsing the message belongs elsewhere
         remote = core.Node(
             addr=message.sender.ip,
             port=message.sender.port,
             nodeid=read_nodeid(message.sender.nodeid)
         )
-        self.table.node_seen(remote)
+        try:
+            self.table.node_seen(remote)
+        except core.NoRoomInBucket:
+            # TODO: do something here, we should try to evict a node!
+            pass
 
         if isresponse(message):
             nonce = message.nonce

@@ -59,3 +59,33 @@ async def test_nonce_matching():
         assert False, 'the future was never set'
 
     assert future.done()
+
+@pytest.mark.asyncio
+async def test_incoming_messages_notify_routing_table():
+    'When we receive a message we tell the routing table about it'
+
+    # 1. Start an empty server
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remoteid = 0b1001
+
+    # 2. Send it a PONG
+    loop = asyncio.get_running_loop()
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        asyncio.DatagramProtocol,
+        local_addr = ('localhost', 3001)
+    )
+    ping_message = protocol.create_ping()
+    pong_message = protocol.create_pong(ping_message)
+    pong_message.nonce = b'garbage'
+    pong_message.sender.nodeid = protocol.write_nodeid(remoteid)  # it should be put into the first bucket
+    serialized = pong_message.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    # 3. Look for the node in the routing table and see that it is good
+    with pytest.raises(KeyError):
+        server.table.last_seen_for(remoteid)
+
+    await asyncio.sleep(0.1)
+    assert server.table.last_seen_for(remoteid) is not None
