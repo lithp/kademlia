@@ -5,10 +5,11 @@ import random
 
 import google.protobuf
 
+import core
 from protobuf.rpc_pb2 import Message, Ping
 
 def newnonce():
-    return hashlib.sha1(random.getrandbits(64)).digest()
+    return random.getrandbits(64).to_bytes(8, byteorder='big')
 
 class Protocol(asyncio.DatagramProtocol):
 
@@ -24,8 +25,13 @@ class Protocol(asyncio.DatagramProtocol):
             print(data)
             return
 
+        # We're throwing away addr but it seems useful.
+
+        # The node claims to have the address {message.sender}, but {addr} has been proven
+        # to work and potentially even punched through a NAT, it seems the better choice!
+
         if message.HasField('ping'):
-            self.ping_received(message, addr)
+            self.ping_received(message)
             return
 
         print(message)
@@ -36,13 +42,43 @@ class Protocol(asyncio.DatagramProtocol):
         print(hexed)
         self.transport.sendto(hexed, addr)
 
-    def ping_received(self, message, addr):
-        print(f'received a ping from {message.sender.nodeid}, {addr}')
+    # Requests
+
+    def ping_received(self, message):
+        '''
+        Tell our node that a peer was seen!
+        '''
+        print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
 
         ping = create_pong(message)
         data = ping.SerializeToString()
+
         self.transport.sendto(data, addr)
 
+    def store_received(self, message):
+        pass
+
+    def find_node_received(self, message):
+        pass
+
+    def find_value_received(self, message):
+        pass
+
+    # Responses
+
+    def pong_received(self, message):
+        # check the nonce!
+        # now forward this to the coroutine which was waiting for it
+        #  (lookup the future by nonce)
+        pass
+
+    def find_node_response_received(self, message):
+        pass
+
+    def found_value_received(self, message):
+        pass
+
+# This should use data from our Node!
 def create_ping() -> Message:
     message = Message()
     message.sender.ip = 'localhost'
@@ -51,7 +87,7 @@ def create_ping() -> Message:
     message.sender.publickey = b'hi'
 
     message.signature = b'xxx'
-    message.nonce = 10
+    message.nonce = newnonce()
 
     message.ping.SetInParent()
 
