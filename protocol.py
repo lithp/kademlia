@@ -127,28 +127,27 @@ class Protocol(asyncio.DatagramProtocol):
         pass
 
 # This should use data from our Node!
-def create_ping() -> Message:
+def create_ping(node: core.Node) -> Message:
     message = Message()
-    message.sender.ip = 'localhost'
-    message.sender.port = 9000
-    message.sender.nodeid = newnonce()
-    message.sender.publickey = b'hi'
 
-    message.signature = b'xxx'
+    message.sender.ip = node.addr
+    message.sender.port = node.port
+    message.sender.nodeid = write_nodeid(node.nodeid)
+
     message.nonce = newnonce()
 
     message.ping.SetInParent()
 
     return message
 
-def create_pong(ping: Message) -> Message:
+def create_pong(node: core.Node, nonce: bytes) -> Message:
     message = Message()
 
-    message.sender.ip = 'localhost'
-    message.sender.port = 9000
-    message.sender.nodeid = newnonce()
+    message.sender.ip = node.addr
+    message.sender.port = node.port
+    message.sender.nodeid = write_nodeid(node.nodeid)
 
-    message.nonce = ping.nonce
+    message.nonce = nonce
     message.pong.SetInParent()
 
     return message
