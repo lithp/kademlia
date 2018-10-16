@@ -6,6 +6,8 @@ import ipaddress
 import random
 import typing
 
+Address = typing.Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+
 def new_node_id() -> int:
     'a random nodeid from [0, 2^160-1]'
     nodeid = random.getrandbits(160)
@@ -19,7 +21,7 @@ def node_distance(left: int, right: int) -> int:
     return left ^ right
 
 class Node(typing.NamedTuple):
-    addr: typing.Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+    addr: Address
     port: int
     nodeid: int
 
