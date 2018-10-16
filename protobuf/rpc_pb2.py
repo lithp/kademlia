@@ -18,7 +18,7 @@ _sym_db = _symbol_database.Default()
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='rpc.proto',
   package='',
-  serialized_pb=_b('\n\trpc.proto\"C\n\x04Node\x12\n\n\x02ip\x18\x01 \x02(\t\x12\x0c\n\x04port\x18\x02 \x02(\r\x12\x0e\n\x06nodeid\x18\x03 \x02(\t\x12\x11\n\tpublickey\x18\x04 \x01(\x0c\"\x06\n\x04Ping\"\x06\n\x04Pong\"#\n\x05Store\x12\x0b\n\x03key\x18\x01 \x02(\t\x12\r\n\x05value\x18\x02 \x02(\t\"\x17\n\x08\x46indNode\x12\x0b\n\x03key\x18\x01 \x02(\t\",\n\x10\x46indNodeResponse\x12\x18\n\tneighbors\x18\x01 \x03(\x0b\x32\x05.Node\"\xe0\x01\n\x07Message\x12\x15\n\x06sender\x18\x01 \x02(\x0b\x32\x05.Node\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x12\r\n\x05nonce\x18\x03 \x02(\x04\x12\x15\n\x04ping\x18\x04 \x01(\x0b\x32\x05.PingH\x00\x12\x15\n\x04pong\x18\x05 \x01(\x0b\x32\x05.PongH\x00\x12\x17\n\x05store\x18\x06 \x01(\x0b\x32\x06.StoreH\x00\x12\x1d\n\x08\x66indNode\x18\x07 \x01(\x0b\x32\t.FindNodeH\x00\x12-\n\x10\x66indNodeResponse\x18\x08 \x01(\x0b\x32\x11.FindNodeResponseH\x00\x42\x07\n\x05inner')
+  serialized_pb=_b('\n\trpc.proto\"C\n\x04Node\x12\n\n\x02ip\x18\x01 \x02(\t\x12\x0c\n\x04port\x18\x02 \x02(\r\x12\x0e\n\x06nodeid\x18\x03 \x02(\x0c\x12\x11\n\tpublickey\x18\x04 \x01(\x0c\"\x06\n\x04Ping\"\x06\n\x04Pong\"#\n\x05Store\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\"\x17\n\x08\x46indNode\x12\x0b\n\x03key\x18\x01 \x02(\x0c\"\x18\n\tFindValue\x12\x0b\n\x03key\x18\x01 \x02(\x0c\"(\n\nFoundValue\x12\x0b\n\x03key\x18\x01 \x02(\x0c\x12\r\n\x05value\x18\x02 \x02(\x0c\",\n\x10\x46indNodeResponse\x12\x18\n\tneighbors\x18\x01 \x03(\x0b\x32\x05.Node\"\xa4\x02\n\x07Message\x12\x15\n\x06sender\x18\x01 \x02(\x0b\x32\x05.Node\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x12\r\n\x05nonce\x18\x03 \x02(\x04\x12\x15\n\x04ping\x18\x04 \x01(\x0b\x32\x05.PingH\x00\x12\x15\n\x04pong\x18\x05 \x01(\x0b\x32\x05.PongH\x00\x12\x17\n\x05store\x18\x06 \x01(\x0b\x32\x06.StoreH\x00\x12\x1d\n\x08\x66indNode\x18\x07 \x01(\x0b\x32\t.FindNodeH\x00\x12-\n\x10\x66indNodeResponse\x18\x08 \x01(\x0b\x32\x11.FindNodeResponseH\x00\x12\x1f\n\tfindValue\x18\t \x01(\x0b\x32\n.FindValueH\x00\x12!\n\nfoundValue\x18\n \x01(\x0b\x32\x0b.FoundValueH\x00\x42\x07\n\x05inner')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -48,8 +48,8 @@ _NODE = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='nodeid', full_name='Node.nodeid', index=2,
-      number=3, type=9, cpp_type=9, label=2,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=3, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -131,15 +131,15 @@ _STORE = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='key', full_name='Store.key', index=0,
-      number=1, type=9, cpp_type=9, label=2,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=1, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
       name='value', full_name='Store.value', index=1,
-      number=2, type=9, cpp_type=9, label=2,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=2, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -168,8 +168,8 @@ _FINDNODE = _descriptor.Descriptor(
   fields=[
     _descriptor.FieldDescriptor(
       name='key', full_name='FindNode.key', index=0,
-      number=1, type=9, cpp_type=9, label=2,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=1, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
@@ -186,6 +186,73 @@ _FINDNODE = _descriptor.Descriptor(
   ],
   serialized_start=135,
   serialized_end=158,
+)
+
+
+_FINDVALUE = _descriptor.Descriptor(
+  name='FindValue',
+  full_name='FindValue',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='FindValue.key', index=0,
+      number=1, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=160,
+  serialized_end=184,
+)
+
+
+_FOUNDVALUE = _descriptor.Descriptor(
+  name='FoundValue',
+  full_name='FoundValue',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='FoundValue.key', index=0,
+      number=1, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='FoundValue.value', index=1,
+      number=2, type=12, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=186,
+  serialized_end=226,
 )
 
 
@@ -214,8 +281,8 @@ _FINDNODERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=160,
-  serialized_end=204,
+  serialized_start=228,
+  serialized_end=272,
 )
 
 
@@ -282,6 +349,20 @@ _MESSAGE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='findValue', full_name='Message.findValue', index=8,
+      number=9, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='foundValue', full_name='Message.foundValue', index=9,
+      number=10, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -296,8 +377,8 @@ _MESSAGE = _descriptor.Descriptor(
       name='inner', full_name='Message.inner',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=207,
-  serialized_end=431,
+  serialized_start=275,
+  serialized_end=567,
 )
 
 _FINDNODERESPONSE.fields_by_name['neighbors'].message_type = _NODE
@@ -307,6 +388,8 @@ _MESSAGE.fields_by_name['pong'].message_type = _PONG
 _MESSAGE.fields_by_name['store'].message_type = _STORE
 _MESSAGE.fields_by_name['findNode'].message_type = _FINDNODE
 _MESSAGE.fields_by_name['findNodeResponse'].message_type = _FINDNODERESPONSE
+_MESSAGE.fields_by_name['findValue'].message_type = _FINDVALUE
+_MESSAGE.fields_by_name['foundValue'].message_type = _FOUNDVALUE
 _MESSAGE.oneofs_by_name['inner'].fields.append(
   _MESSAGE.fields_by_name['ping'])
 _MESSAGE.fields_by_name['ping'].containing_oneof = _MESSAGE.oneofs_by_name['inner']
@@ -322,11 +405,19 @@ _MESSAGE.fields_by_name['findNode'].containing_oneof = _MESSAGE.oneofs_by_name['
 _MESSAGE.oneofs_by_name['inner'].fields.append(
   _MESSAGE.fields_by_name['findNodeResponse'])
 _MESSAGE.fields_by_name['findNodeResponse'].containing_oneof = _MESSAGE.oneofs_by_name['inner']
+_MESSAGE.oneofs_by_name['inner'].fields.append(
+  _MESSAGE.fields_by_name['findValue'])
+_MESSAGE.fields_by_name['findValue'].containing_oneof = _MESSAGE.oneofs_by_name['inner']
+_MESSAGE.oneofs_by_name['inner'].fields.append(
+  _MESSAGE.fields_by_name['foundValue'])
+_MESSAGE.fields_by_name['foundValue'].containing_oneof = _MESSAGE.oneofs_by_name['inner']
 DESCRIPTOR.message_types_by_name['Node'] = _NODE
 DESCRIPTOR.message_types_by_name['Ping'] = _PING
 DESCRIPTOR.message_types_by_name['Pong'] = _PONG
 DESCRIPTOR.message_types_by_name['Store'] = _STORE
 DESCRIPTOR.message_types_by_name['FindNode'] = _FINDNODE
+DESCRIPTOR.message_types_by_name['FindValue'] = _FINDVALUE
+DESCRIPTOR.message_types_by_name['FoundValue'] = _FOUNDVALUE
 DESCRIPTOR.message_types_by_name['FindNodeResponse'] = _FINDNODERESPONSE
 DESCRIPTOR.message_types_by_name['Message'] = _MESSAGE
 
@@ -364,6 +455,20 @@ FindNode = _reflection.GeneratedProtocolMessageType('FindNode', (_message.Messag
   # @@protoc_insertion_point(class_scope:FindNode)
   ))
 _sym_db.RegisterMessage(FindNode)
+
+FindValue = _reflection.GeneratedProtocolMessageType('FindValue', (_message.Message,), dict(
+  DESCRIPTOR = _FINDVALUE,
+  __module__ = 'rpc_pb2'
+  # @@protoc_insertion_point(class_scope:FindValue)
+  ))
+_sym_db.RegisterMessage(FindValue)
+
+FoundValue = _reflection.GeneratedProtocolMessageType('FoundValue', (_message.Message,), dict(
+  DESCRIPTOR = _FOUNDVALUE,
+  __module__ = 'rpc_pb2'
+  # @@protoc_insertion_point(class_scope:FoundValue)
+  ))
+_sym_db.RegisterMessage(FoundValue)
 
 FindNodeResponse = _reflection.GeneratedProtocolMessageType('FindNodeResponse', (_message.Message,), dict(
   DESCRIPTOR = _FINDNODERESPONSE,

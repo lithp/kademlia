@@ -1,7 +1,7 @@
 message Node {
   required string ip = 1;
   required uint32 port = 2;
-  required string nodeid = 3;
+  required bytes nodeid = 3;
   optional bytes publickey = 4;
 }
 
@@ -9,12 +9,21 @@ message Ping {}
 message Pong {}
 
 message Store {
-  required string key = 1;
-  required string value = 2;
+  required bytes key = 1;
+  required bytes value = 2;
 }
 
 message FindNode {
-  required string key = 1;
+  required bytes key = 1;
+}
+
+message FindValue {
+  required bytes key = 1;
+}
+
+message FoundValue {
+  required bytes key = 1;
+  required bytes value = 2;
 }
 
 message FindNodeResponse {
@@ -33,5 +42,7 @@ message Message {
     Store store = 6;
     FindNode findNode = 7;
     FindNodeResponse findNodeResponse = 8;
+    FindValue findValue = 9;
+    FoundValue foundValue = 10;
   }
 }
