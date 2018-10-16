@@ -34,18 +34,9 @@ class Node():
         Given a node we should connect to, populate our routing table
         '''
 
-        # insert the remote node into the relevant k-bucket
-        # this requires first running a PING to get the remote node's ID
+        # When the remote node responds it will be added to the relevant k-bucket
         # TODO: handle timeouts!
-        pong = await self.server.ping(address, port)
-
-        # TODO: this smells bad, this should happen automatically in the Protocol!
-        remote = core.Node(
-            addr=pong.sender.ip,
-            port=pong.sender.port,
-            nodeid=pong.sender.nodeid
-        )
-        self.server.table.node_seen(remote)
+        await self.server.ping(address, port)
 
         # perform a FIND_NODE for your own ID
         await self.server.find_node(self.nodeid)

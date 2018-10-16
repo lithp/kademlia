@@ -15,10 +15,19 @@ def isresponse(message):
     responses = ['pong', 'storeResponse', 'findNodeResponse', 'foundValue']
     return any(message.HasField(response) for response in responses)
 
+def read_nodeid(asbytes: bytes) -> int:
+    asint = int.from_bytes(asbytes, byteorder='big')
+    assert(asint.bit_length() <= 160)
+    return asint
+
+def write_nodeid(asint: int) -> bytes:
+    return asint.to_bytes(20, byteorder='big')
+
 class Protocol(asyncio.DatagramProtocol):
 
-    def __init__(self):
+    def __init__(self, table: core.RoutingTable):
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
+        self.table = table
 
     def connection_made(self, transport):
         self.transport = transport
@@ -32,7 +41,12 @@ class Protocol(asyncio.DatagramProtocol):
             print(data)
             return
 
-        # TODO: tell the routing table about message.sender
+        remote = core.Node(
+            addr=message.sender.ip,
+            port=message.sender.port,
+            nodeid=read_nodeid(message.sender.nodeid)
+        )
+        self.table.node_seen(remote)
 
         if isresponse(message):
             nonce = message.nonce
@@ -147,7 +161,7 @@ class Server:
         local_addr = ('localhost', port)
 
         endpoint = loop.create_datagram_endpoint(
-            lambda: Protocol(), local_addr = local_addr
+            lambda: Protocol(self.table), local_addr = local_addr
         )
         self.transport, self.protocol = await endpoint
 
