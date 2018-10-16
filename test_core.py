@@ -13,7 +13,7 @@ def test_bucket_index_for():
     assert table._bucket_index_for(0b1010) == 1  # distance of 2 -> second bucket
     assert table._bucket_index_for(0b1011) == 1  # distance of 3 -> second bucket
     assert table._bucket_index_for(0b1100) == 2  # distance of 4 -> third bucket
-    assert table._bucket_index_for(0b0000) == 2  # distance of 8 -> fourth bucket
+    assert table._bucket_index_for(0b0000) == 3  # distance of 8 -> fourth bucket
 
     nodeid = 0
     table = RoutingTable(2, nodeid)

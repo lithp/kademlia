@@ -9,7 +9,7 @@ import core
 from protobuf.rpc_pb2 import Message, Ping
 
 def newnonce():
-    return random.getrandbits(64).to_bytes(8, byteorder='big')
+    return random.getrandbits(160).to_bytes(20, byteorder='big')
 
 class Protocol(asyncio.DatagramProtocol):
 
