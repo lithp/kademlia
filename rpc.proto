@@ -1,0 +1,37 @@
+message Node {
+  required string ip = 1;
+  required uint32 port = 2;
+  required string nodeid = 3;
+  optional bytes publickey = 4;
+}
+
+message Ping {}
+message Pong {}
+
+message Store {
+  required string key = 1;
+  required string value = 2;
+}
+
+message FindNode {
+  required string key = 1;
+}
+
+message FindNodeResponse {
+  repeated Node neighbors = 1;
+}
+
+message Message {
+  required Node sender = 1;
+  optional bytes signature = 2;
+  required uint64 nonce = 3;
+
+  // consider using google/protobuf/any.proto
+  oneof inner {
+    Ping ping = 4;
+    Pong pong = 5;
+    Store store = 6;
+    FindNode findNode = 7;
+    FindNodeResponse findNodeResponse = 8;
+  }
+}
