@@ -5,6 +5,20 @@ import typing
 from core import *
 
 
+def test_bucket_ranges():
+    assert bucket_ranges(0) == (1, 1)
+    assert bucket_ranges(1) == (2, 3)
+    assert bucket_ranges(2) == (4, 7)
+    assert bucket_ranges(3) == (8, 15)
+
+def test_random_key_in_bucket():
+    myid = 0b10000
+    bucket = 4
+    one_hundred_samples = [random_key_in_bucket(myid, bucket) for _ in range(100)]
+    for i in range(0, 15):
+        # assert that we've returned everything in the requested bucket at least once
+        assert i in one_hundred_samples
+
 def test_bucket_index_for():
     nodeid = 0b1000
     table = RoutingTable(2, nodeid)

@@ -177,6 +177,21 @@ class Server:
         # TODO: when a timeout happens, alert the RoutingTable so we mark this node flaky
         return future
 
+    async def ping(self, addr):
+        pingmsg = create_ping()  # TODO: This should include information on ourselves!
+
+        future = self.send(pingmsg, addr)
+        pong = await future
+
+        return pong
+
+    async def find_node(self, nodeid: int):
+
+        # you'll hopefully receive a FindNodeResponse, which contains a list of nodes
+        # which are closest to the requested id
+
+        pass
+
 async def main():
 
     server = Server()

@@ -20,6 +20,22 @@ def nodeid_as_bitstring(nodeid: int) -> str:
 def node_distance(left: int, right: int) -> int:
     return left ^ right
 
+def bucket_ranges(bucket_index: int) -> typing.Tuple[int, int]:
+    'Returns the min and max value for a bucket'
+    assert bucket_index >= 0
+    assert bucket_index < 160
+
+    return (
+        2**bucket_index,
+        (2**(bucket_index+1)) - 1
+    )
+
+def random_key_in_bucket(myid: int, bucket_index: int) -> int:
+    'Returns a random key which belongs in the given bucket'
+    distances = bucket_ranges(bucket_index) # everything in the bucket is this far from us
+    distance = random.randrange(*distances)
+    return myid ^ distance
+
 class Node(typing.NamedTuple):
     addr: Address
     port: int
