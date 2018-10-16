@@ -154,13 +154,10 @@ class Server:
             self.transport.close()
             self.transport = None
 
-    async def send(self, message, addr):
+    def send(self, message, addr):
         '''
-        1. Create a future and associate it with the nonce, so that when we get a response
-           we 
-        2. return the future
-        3. Later, the Protocol will alert us that a message has arrived
-           (and we'll set the Future)
+        Sends the message and returns a future. The Future will be triggered when the
+        remote node sends a response to this message.
         '''
         if not self.transport:
             raise Exception('the server is not running yet!')
@@ -174,7 +171,7 @@ class Server:
 
         # TODO: where do we check that the message is not too large?
         serialized = message.SerializeToString()
-        await self.transport.sendto(serialized, addr)
+        self.transport.sendto(serialized, addr)
 
         # TODO: also timeout if we haven't received a response in x seconds
         # TODO: when a timeout happens, alert the RoutingTable so we mark this node flaky
