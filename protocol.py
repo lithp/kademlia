@@ -160,9 +160,14 @@ class Server:
 
         self.table = core.RoutingTable(k, mynodeid)
 
+        self.node = None
+        self.nodeid = mynodeid
+
     async def listen(self, port):
         loop = asyncio.get_running_loop()
         local_addr = ('localhost', port)
+
+        self.node = core.Node(addr='localhost', port=port, nodeid=self.nodeid)
 
         endpoint = loop.create_datagram_endpoint(
             lambda: Protocol(self.table), local_addr = local_addr
@@ -185,7 +190,7 @@ class Server:
         loop = asyncio.get_running_loop()
         future = loop.create_future()
 
-        # when a response come in with this nonce the protocol will trigger the future
+        # when a response comes in with this nonce Protocol will trigger the future
         nonce = message.nonce
         self.protocol.register_nonce(nonce, future)
 
@@ -198,12 +203,9 @@ class Server:
         return future
 
     async def ping(self, addr):
-        pingmsg = create_ping()  # TODO: This should include information on ourselves!
-
+        pingmsg = create_ping(self.node)
         future = self.send(pingmsg, addr)
-        pong = await future
-
-        return pong
+        await future
 
     async def find_node(self, nodeid: int):
 

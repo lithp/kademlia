@@ -1,9 +1,13 @@
 import asyncio
+import logging
 import pytest
 import random
 
 import core
 import protocol
+
+from protobuf.rpc_pb2 import Message
+
 
 def test_newnonce():
     nonce = protocol.newnonce()
@@ -65,6 +69,7 @@ async def test_nonce_matching():
 
     assert future.done()
 
+
 @pytest.mark.asyncio
 async def test_incoming_messages_notify_routing_table():
     'When we receive a message we tell the routing table about it'
@@ -92,3 +97,82 @@ async def test_incoming_messages_notify_routing_table():
 
     await asyncio.sleep(0.1)
     assert server.table.last_seen_for(remoteid) is not None
+
+class RecordingDatagramProtocol(asyncio.DatagramProtocol):
+    def __init__(self):
+        self.messages = list()
+    def datagram_received(self, data, addr):
+        message = Message()
+        message.ParseFromString(data)
+        self.messages.append(message)
+
+
+@pytest.mark.asyncio
+async def test_server_send():
+    '''
+    Test that the server can send something which we can receive
+    '''
+    loop = asyncio.get_running_loop()
+
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    local_node = core.Node(addr='localhost', port=3000, nodeid=0b1000)
+    remote_addr = ('localhost', 3002)
+    remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
+
+    # spin up a server
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        RecordingDatagramProtocol, local_addr = remote_addr
+    )
+
+    assert len(dgprotocol.messages) == 0
+
+    message = protocol.create_ping(local_node)
+    server.send(message, remote_addr)
+
+    await asyncio.sleep(0.1)
+    assert len(dgprotocol.messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_server_ping():
+    '''
+    When you call server.ping a PING packet is sent.
+    It blocks until the PONG packet is received.
+    '''
+    loop = asyncio.get_running_loop()
+    loop.set_debug(True)
+    loop.slow_callback_duration = 0
+
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote_addr = ('localhost', 3002)
+
+    # spin up a server
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        RecordingDatagramProtocol, local_addr = remote_addr
+    )
+
+    assert len(dgprotocol.messages) == 0
+
+    # I don't understand why, but for this test to pass we must create the task after
+    # we create the datagram endpoint
+
+    coro = server.ping(remote_addr)
+    task = loop.create_task(coro)
+    done, pending = await asyncio.wait({task}, timeout=0.2)
+    assert task in pending
+
+    assert len(dgprotocol.messages) == 1
+    ping_message = dgprotocol.messages[0]
+
+    remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
+    pong_message = protocol.create_pong(remote_node, ping_message.nonce)
+    serialized = pong_message.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    # now that we've sent a PONG it should be unblocked
+    done, pending = await asyncio.wait({task}, timeout=0.2)
+    assert task in done
