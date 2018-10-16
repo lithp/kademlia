@@ -24,6 +24,10 @@ class Protocol(asyncio.DatagramProtocol):
             print(data)
             return
 
+        if message.HasField('ping'):
+            self.ping_received(message, addr)
+            return
+
         print(message)
         print(f'got a real message! {message.nonce}')
 
@@ -32,7 +36,12 @@ class Protocol(asyncio.DatagramProtocol):
         print(hexed)
         self.transport.sendto(hexed, addr)
 
-        # you can call self.transport.sendto(data, addr) if you want to send data
+    def ping_received(self, message, addr):
+        print(f'received a ping from {message.sender.nodeid}, {addr}')
+
+        ping = create_pong(message)
+        data = ping.SerializeToString()
+        self.transport.sendto(data, addr)
 
 def create_ping() -> Message:
     message = Message()
@@ -45,6 +54,18 @@ def create_ping() -> Message:
     message.nonce = 10
 
     message.ping.SetInParent()
+
+    return message
+
+def create_pong(ping: Message) -> Message:
+    message = Message()
+
+    message.sender.ip = 'localhost'
+    message.sender.port = 9000
+    message.sender.nodeid = 'hi'
+
+    message.nonce = ping.nonce
+    message.pong.SetInParent()
 
     return message
 
