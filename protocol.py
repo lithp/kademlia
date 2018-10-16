@@ -53,6 +53,7 @@ class Protocol(asyncio.DatagramProtocol):
         ping = create_pong(message)
         data = ping.SerializeToString()
 
+        addr = (message.sender.ip, message.sender.port)
         self.transport.sendto(data, addr)
 
     def store_received(self, message):
@@ -83,7 +84,7 @@ def create_ping() -> Message:
     message = Message()
     message.sender.ip = 'localhost'
     message.sender.port = 9000
-    message.sender.nodeid = 'hi'
+    message.sender.nodeid = newnonce()
     message.sender.publickey = b'hi'
 
     message.signature = b'xxx'
@@ -98,25 +99,40 @@ def create_pong(ping: Message) -> Message:
 
     message.sender.ip = 'localhost'
     message.sender.port = 9000
-    message.sender.nodeid = 'hi'
+    message.sender.nodeid = newnonce()
 
     message.nonce = ping.nonce
     message.pong.SetInParent()
 
     return message
 
-async def main():
-    loop = asyncio.get_event_loop()
+class Server:
 
-    transport, protocol = await loop.create_datagram_endpoint(
-            lambda: Protocol(),
-            local_addr = ('localhost', 3000)
-    )
+    def __init__(self):
+        self.transport = None
+
+    async def listen(self, port):
+        loop = asyncio.get_event_loop()
+        local_addr = ('localhost', port)
+
+        endpoint = loop.create_datagram_endpoint(
+            lambda: Protocol(), local_addr = local_addr
+        )
+        self.transport, self.protocol = await endpoint
+
+    def stop(self):
+        if self.transport:
+            self.transport.close()
+
+async def main():
+
+    server = Server()
+    await server.listen(3000)
 
     try:
         await asyncio.sleep(1000)
     finally:
-        transport.close()
+        server.stop()
 
 if __name__ == '__main__':
     asyncio.run(main())
