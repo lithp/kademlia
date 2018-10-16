@@ -1,11 +1,24 @@
 import asyncio
 import pytest
+import random
 
 import protocol
 
 def test_newnonce():
     nonce = protocol.newnonce()
     assert len(nonce) == 20
+
+
+def test_read_write_nodeid():
+    involve = lambda i: protocol.read_nodeid(protocol.write_nodeid(i))
+
+    for i in range(100):
+        assert i == involve(i)
+
+    nodeid = 2**160 - 1
+    assert protocol.write_nodeid(nodeid) == b'\xff'*20
+    assert nodeid == involve(nodeid)
+
 
 @pytest.mark.asyncio  # run the test inside an event loop so we don't have to make one
 async def test_nonce_matching():
