@@ -11,7 +11,7 @@ def test_newnonce():
 async def test_nonce_matching():
     'When you send a PING and get back a PONG with the same nonce the future is triggered'
 
-    server = protocol.Server()
+    server = protocol.Server(k=2, mynodeid=100)
     await server.listen(3000)
 
     ping_message = protocol.create_ping()

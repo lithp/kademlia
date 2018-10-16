@@ -136,9 +136,11 @@ def create_pong(ping: Message) -> Message:
 
 class Server:
 
-    def __init__(self):
+    def __init__(self, k: int, mynodeid: int):
         self.transport = None
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
+
+        self.table = core.RoutingTable(k, mynodeid)
 
     async def listen(self, port):
         loop = asyncio.get_running_loop()

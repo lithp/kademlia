@@ -13,8 +13,7 @@ class Node():
         self.nodeid = core.new_node_id()
 
         self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid)
-        self.server = protocol.Server()
-        self.table = core.RoutingTable(k, self.nodeid)
+        self.server = protocol.Server(k, self.nodeid)
 
     async def listen(self):
         await self.server.listen(self.port)
@@ -30,7 +29,7 @@ class Node():
         # 2. perform a FIND_NODE for the ID
         await self.server.find_node(nodeid)
 
-    async def bootstrap(self, address: Address, port:int):
+    async def bootstrap(self, address: core.Address, port:int):
         '''
         Given a node we should connect to, populate our routing table
         '''
@@ -39,6 +38,14 @@ class Node():
         # this requires first running a PING to get the remote node's ID
         # TODO: handle timeouts!
         pong = await self.server.ping(address, port)
+
+        # TODO: this smells bad, this should happen automatically in the Protocol!
+        remote = core.Node(
+            addr=pong.sender.ip,
+            port=pong.sender.port,
+            nodeid=pong.sender.nodeid
+        )
+        self.server.table.node_seen(remote)
 
         # perform a FIND_NODE for your own ID
         await self.server.find_node(self.nodeid)
