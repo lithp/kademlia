@@ -83,6 +83,17 @@ def create_store(node: core.Node, key: bytes, value: bytes) -> Message:
     message.store.value = value
     return message
 
+def create_found_value(node: core.Node, nonce: bytes, key: bytes, value: bytes) -> Message:
+    message = create_response(node, nonce)
+    message.foundValue.key = key
+    message.foundValue.value = value
+    return message
+
+def create_find_value(node: core.Node, key: bytes) -> Message:
+    message = create_message(node)
+    message.findValue.key = key
+    return message
+
 class Protocol(asyncio.DatagramProtocol):
 
     def __init__(self, table: core.RoutingTable, node: core.Node):
@@ -181,9 +192,20 @@ class Protocol(asyncio.DatagramProtocol):
         addr = (request.sender.ip, request.sender.port)
         self.transport.sendto(serialized, addr)
 
-    def find_value_received(self, message):
+    def find_value_received(self, request):
         # if we have the value locally reply with a FoundValue
-        pass
+        targetkey = request.findValue.key
+        if targetkey in self.storage:
+            response = create_found_value(
+                self.node, request.nonce, targetkey, self.storage[targetkey]
+            )
+            serialized = response.SerializeToString()
+            addr = (request.sender.ip, request.sender.port)
+            self.transport.sendto(serialized, addr)
+            return
+
+        # otherwise, return the nodes most likely to have the value
+        self.find_node_received(request)
 
 
 class Server:

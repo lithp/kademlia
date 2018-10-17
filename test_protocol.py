@@ -274,3 +274,69 @@ async def test_responds_to_store():
     storage = server.protocol.storage
     assert b'abc' in storage
     assert storage[b'abc'] == b'abc'
+
+@pytest.mark.asyncio
+async def test_responds_to_find_value_when_no_value():
+    'When you run a Server and send it just FIND_VALUE it gives you nearby nodes'
+    loop = asyncio.get_running_loop()
+
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote_addr = ('localhost', 3002)
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        RecordingDatagramProtocol, local_addr = remote_addr
+    )
+
+    remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
+    request = protocol.create_find_value(remote_node, key=b'abc')
+    serialized = request.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    # We should get a response back!
+    assert len(dgprotocol.messages) == 0
+    await asyncio.sleep(0.1)
+    assert len(dgprotocol.messages) == 1
+
+    # It should return a FindNodeResponse
+    response = dgprotocol.messages[0]
+    assert response.nonce == request.nonce
+    assert response.HasField('findNodeResponse')
+
+@pytest.mark.asyncio
+async def test_responds_to_find_value_when_has_value():
+    'When you run a Server and send it STORE / FIND_VALUE it gives you the value'
+    loop = asyncio.get_running_loop()
+
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote_addr = ('localhost', 3002)
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        RecordingDatagramProtocol, local_addr = remote_addr
+    )
+
+    remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
+
+    request = protocol.create_store(remote_node, key=b'abc', value=b'abc')
+    serialized = request.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    assert len(dgprotocol.messages) == 0
+    await asyncio.sleep(0.1)
+    assert len(dgprotocol.messages) == 1
+
+    request = protocol.create_find_value(remote_node, key=b'abc')
+    serialized = request.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    await asyncio.sleep(0.1)
+    assert len(dgprotocol.messages) == 2
+
+    # It should return a FoundValue
+    response = dgprotocol.messages[1]
+    assert response.nonce == request.nonce
+    assert response.HasField('foundValue')
+    assert response.foundValue.key == b'abc'
+    assert response.foundValue.value == b'abc'
+
