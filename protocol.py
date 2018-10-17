@@ -72,12 +72,26 @@ def create_pong(node: core.Node, nonce: bytes) -> Message:
     message.pong.SetInParent()
     return message
 
+def create_store_response(node: core.Node, nonce: bytes) -> Message:
+    message = create_response(node, nonce)
+    message.storeResponse.SetInParent()
+    return message
+
+def create_store(node: core.Node, key: bytes, value: bytes) -> Message:
+    message = create_message(node)
+    message.store.key = key
+    message.store.value = value
+    return message
+
 class Protocol(asyncio.DatagramProtocol):
 
     def __init__(self, table: core.RoutingTable, node: core.Node):
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
         self.table = table
         self.node = node
+
+        # TODO: figure out a better place to put this
+        self.storage: typing.Dict[bytes, bytes] = dict()
 
     def connection_made(self, transport):
         self.transport = transport
@@ -120,7 +134,15 @@ class Protocol(asyncio.DatagramProtocol):
             self.ping_received(message)
             return
 
-        # TODO: forward RPCs to store_received and find_value_received
+        if message.HasField('store'):
+            self.store_received(message)
+            return
+
+        if message.HasField('findValue'):
+            self.find_value_received(message)
+            return
+
+        assert False, 'an unexpected message type was received'
 
     # Futures
 
@@ -140,7 +162,13 @@ class Protocol(asyncio.DatagramProtocol):
         self.transport.sendto(data, addr)
 
     def store_received(self, message):
-        pass
+        self.storage[message.store.key] = message.store.value
+
+        response = create_store_response(self.node, message.nonce)
+        serialized = response.SerializeToString()
+
+        addr = (message.sender.ip, message.sender.port)
+        self.transport.sendto(serialized, addr)
 
     def find_node_received(self, request):
         # look in the table and return the nodes closest to the requested node
@@ -157,19 +185,6 @@ class Protocol(asyncio.DatagramProtocol):
         # if we have the value locally reply with a FoundValue
         pass
 
-    # Responses
-
-    def pong_received(self, message):
-        # check the nonce!
-        # now forward this to the coroutine which was waiting for it
-        #  (lookup the future by nonce)
-        pass
-
-    def find_node_response_received(self, message):
-        pass
-
-    def found_value_received(self, message):
-        pass
 
 class Server:
 

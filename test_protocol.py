@@ -240,3 +240,37 @@ async def test_responds_to_find_node():
     node = protocol.read_node(response.findNodeResponse.neighbors[0])
     assert node == remote_node
 
+@pytest.mark.asyncio
+async def test_responds_to_store():
+    'When you run a Server and send it STORE it responds and also stores'
+    loop = asyncio.get_running_loop()
+
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote_addr = ('localhost', 3002)
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        RecordingDatagramProtocol, local_addr = remote_addr
+    )
+
+    # Ask it for some random node
+    remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
+
+    request = protocol.create_store(remote_node, key=b'abc', value=b'abc')
+    serialized = request.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    # We should get a response back!
+    assert len(dgprotocol.messages) == 0
+    await asyncio.sleep(0.1)
+    assert len(dgprotocol.messages) == 1
+
+    # It should return a StoreResponse
+    response = dgprotocol.messages[0]
+    assert response.nonce == request.nonce
+    assert response.HasField('storeResponse')
+
+    # TODO: this is a horrible smell, put storage somewhere better!
+    storage = server.protocol.storage
+    assert b'abc' in storage
+    assert storage[b'abc'] == b'abc'
