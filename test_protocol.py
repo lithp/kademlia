@@ -142,8 +142,6 @@ async def test_server_ping():
     It blocks until the PONG packet is received.
     '''
     loop = asyncio.get_running_loop()
-    loop.set_debug(True)
-    loop.slow_callback_duration = 0
 
     server = protocol.Server(k=2, mynodeid=0b1000)
     await server.listen(3000)
@@ -176,3 +174,33 @@ async def test_server_ping():
     # now that we've sent a PONG it should be unblocked
     done, pending = await asyncio.wait({task}, timeout=0.2)
     assert task in done
+
+@pytest.mark.asyncio
+async def test_response_to_ping():
+    'When you run a Server and send it a PING it responds with a PONG'
+    loop = asyncio.get_running_loop()
+
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote_addr = ('localhost', 3002)
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        RecordingDatagramProtocol, local_addr = remote_addr
+    )
+
+    remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
+    ping = protocol.create_ping(remote_node)
+    serialized = ping.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    # we've sent a ping to the local node, once we give it a chance to run it should send
+    # a pong back to us
+
+    assert len(dgprotocol.messages) == 0
+    await asyncio.sleep(0.1)
+    assert len(dgprotocol.messages) == 1
+
+@pytest.mark.asyncio
+async def test_responds_to_find_node():
+    pass
+

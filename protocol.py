@@ -2,6 +2,7 @@ import asyncio
 import binascii
 import hashlib
 import random
+import typing
 
 import google.protobuf
 
@@ -25,14 +26,19 @@ def write_nodeid(asint: int) -> bytes:
 
 class Protocol(asyncio.DatagramProtocol):
 
-    def __init__(self, table: core.RoutingTable):
+    def __init__(self, table: core.RoutingTable, node: core.Node):
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
         self.table = table
+        self.node = node
 
     def connection_made(self, transport):
         self.transport = transport
 
     def datagram_received(self, data, addr):
+        # We're throwing away addr but it seems useful.
+
+        # The node claims to have the address {message.sender}, but {addr} has been proven
+        # to work and potentially even punched through a NAT, it seems the better choice!
         try:
             message = Message()
             message.ParseFromString(data)
@@ -63,24 +69,16 @@ class Protocol(asyncio.DatagramProtocol):
             future.set_result(message)
             return
 
-        # If it's a request, call the appropriate handler!
-
-        # We're throwing away addr but it seems useful.
-
-        # The node claims to have the address {message.sender}, but {addr} has been proven
-        # to work and potentially even punched through a NAT, it seems the better choice!
+        if message.HasField('findNode'):
+            self.find_node_received(message)
+            return
 
         if message.HasField('ping'):
             self.ping_received(message)
             return
 
-        print(message)
-        print(f'got a real message! {message.nonce}')
+        # TODO: forward RPCs to store_received and find_value_received
 
-        ping = create_ping()
-        hexed = binascii.hexlify(ping.SerializeToString())
-        print(hexed)
-        self.transport.sendto(hexed, addr)
 
     # Futures
 
@@ -91,12 +89,9 @@ class Protocol(asyncio.DatagramProtocol):
     # Requests
 
     def ping_received(self, message):
-        '''
-        Tell our node that a peer was seen!
-        '''
         print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
 
-        ping = create_pong(message)
+        ping = create_pong(self.node, message.nonce)
         data = ping.SerializeToString()
 
         addr = (message.sender.ip, message.sender.port)
@@ -106,7 +101,16 @@ class Protocol(asyncio.DatagramProtocol):
         pass
 
     def find_node_received(self, message):
-        pass
+        # look in the table and return the nodes closest to the requested node
+        targetnodeid: int = read_nodeid(message.findNode.key)
+        closest: typing.List[core.Node] = self.table.closest(targetnodeid)
+
+        message = create_message(self.node)
+        create_find_node_response(message, closest)
+        serialized = message.SerializeToString()
+
+        addr = (message.sender.ip, message.sender.port)
+        self.transport.sendto(serialized, addr)
 
     def find_value_received(self, message):
         # if we have the value locally reply with a FoundValue
@@ -125,6 +129,24 @@ class Protocol(asyncio.DatagramProtocol):
 
     def found_value_received(self, message):
         pass
+
+def create_message(node: core.Node) -> Message:
+    message = Message()
+
+    message.sender.ip = node.addr
+    message.sender.port = node.port
+    message.sender.nodeid = write_nodeid(node.nodeid)
+
+    message.nonce = newnonce()
+
+    return message
+
+def create_find_node_response(stub: Message, nodes: typing.List[core.Node]):
+    for node in nodes:
+        neighbor = stub.neighbors.add()
+        neighbor.ip = node.addr
+        neighbor.port = node.port
+        neighbor.nodeid = write_nodeid(node.nodeid)
 
 # This should use data from our Node!
 def create_ping(node: core.Node) -> Message:
@@ -170,7 +192,7 @@ class Server:
         self.node = core.Node(addr='localhost', port=port, nodeid=self.nodeid)
 
         endpoint = loop.create_datagram_endpoint(
-            lambda: Protocol(self.table), local_addr = local_addr
+            lambda: Protocol(self.table, self.node), local_addr = local_addr
         )
         self.transport, self.protocol = await endpoint
 
