@@ -169,6 +169,7 @@ class Protocol(asyncio.DatagramProtocol):
         self.transport.sendto(serialized, dest)
 
     def ping_received(self, message):
+        # TODO: turn this into a logging statement
         print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
 
         ping = create_pong(self.node, message.nonce)
