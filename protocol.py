@@ -7,7 +7,7 @@ import typing
 import google.protobuf
 
 import core
-from protobuf.rpc_pb2 import Message, Ping
+from protobuf.rpc_pb2 import Message, Ping, Node as NodeProto
 
 def newnonce():
     return random.getrandbits(160).to_bytes(20, byteorder='big')
@@ -23,6 +23,13 @@ def read_nodeid(asbytes: bytes) -> int:
 
 def write_nodeid(asint: int) -> bytes:
     return asint.to_bytes(20, byteorder='big')
+
+def read_node(node: NodeProto) -> core.Node:
+    return core.Node(
+        addr=node.ip,
+        port=node.port,
+        nodeid=read_nodeid(node.nodeid)
+    )
 
 class Protocol(asyncio.DatagramProtocol):
 
@@ -79,7 +86,6 @@ class Protocol(asyncio.DatagramProtocol):
 
         # TODO: forward RPCs to store_received and find_value_received
 
-
     # Futures
 
     def register_nonce(self, nonce, future):
@@ -100,16 +106,16 @@ class Protocol(asyncio.DatagramProtocol):
     def store_received(self, message):
         pass
 
-    def find_node_received(self, message):
+    def find_node_received(self, request):
         # look in the table and return the nodes closest to the requested node
-        targetnodeid: int = read_nodeid(message.findNode.key)
+        targetnodeid: int = read_nodeid(request.findNode.key)
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
-        message = create_message(self.node)
-        create_find_node_response(message, closest)
-        serialized = message.SerializeToString()
+        response = create_response(self.node, request)
+        create_find_node_response(response, closest)
+        serialized = response.SerializeToString()
 
-        addr = (message.sender.ip, message.sender.port)
+        addr = (request.sender.ip, request.sender.port)
         self.transport.sendto(serialized, addr)
 
     def find_value_received(self, message):
@@ -141,12 +147,20 @@ def create_message(node: core.Node) -> Message:
 
     return message
 
+def create_response(node: core.Node, request: Message) -> Message:
+    message = create_message(node)
+    message.nonce = request.nonce
+    return message
+
 def create_find_node_response(stub: Message, nodes: typing.List[core.Node]):
     for node in nodes:
-        neighbor = stub.neighbors.add()
+        neighbor = stub.findNodeResponse.neighbors.add()
         neighbor.ip = node.addr
         neighbor.port = node.port
         neighbor.nodeid = write_nodeid(node.nodeid)
+
+def create_find_node(stub: Message, targetnodeid: int):
+    stub.findNode.key = write_nodeid(targetnodeid)
 
 # This should use data from our Node!
 def create_ping(node: core.Node) -> Message:

@@ -148,7 +148,7 @@ class RoutingTable:
         return next(iter(dictionary.items()))
 
     def node_seen(self, node: Node):
-        assert self.nodeid != node.nodeid
+        assert self.nodeid != node.nodeid, (self.nodeid, node.nodeid)
 
         bucket: collections.OrderedDict = self._bucket_for(node.nodeid)
 

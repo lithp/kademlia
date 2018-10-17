@@ -208,5 +208,36 @@ async def test_response_to_ping():
 
 @pytest.mark.asyncio
 async def test_responds_to_find_node():
-    pass
+    'When you run a Server and send it FIND_NODE it gives you all it has'
+    loop = asyncio.get_running_loop()
+
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote_addr = ('localhost', 3002)
+    transport, dgprotocol = await loop.create_datagram_endpoint(
+        RecordingDatagramProtocol, local_addr = remote_addr
+    )
+
+    # Ask it for some random node
+    remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
+
+    request = protocol.create_message(remote_node)
+    protocol.create_find_node(request, targetnodeid=0b10000)
+    serialized = request.SerializeToString()
+    transport.sendto(serialized, ('localhost', 3000))
+
+    # We should get a response back!
+    assert len(dgprotocol.messages) == 0
+    await asyncio.sleep(0.1)
+    assert len(dgprotocol.messages) == 1
+
+    # It should return a single element, us! (by sending it a message we added ourselves
+    # to the routing table)
+    response = dgprotocol.messages[0]
+    assert response.nonce == request.nonce
+    assert len(response.findNodeResponse.neighbors) == 1
+
+    node = protocol.read_node(response.findNodeResponse.neighbors[0])
+    assert node == remote_node
 
