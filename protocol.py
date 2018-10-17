@@ -163,23 +163,22 @@ class Protocol(asyncio.DatagramProtocol):
 
     # Requests
 
+    def _respond(self, request, response):
+        serialized = response.SerializeToString()
+        dest = (request.sender.ip, request.sender.port)
+        self.transport.sendto(serialized, dest)
+
     def ping_received(self, message):
         print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
 
         ping = create_pong(self.node, message.nonce)
-        data = ping.SerializeToString()
-
-        addr = (message.sender.ip, message.sender.port)
-        self.transport.sendto(data, addr)
+        self._respond(message, ping)
 
     def store_received(self, message):
         self.storage[message.store.key] = message.store.value
 
         response = create_store_response(self.node, message.nonce)
-        serialized = response.SerializeToString()
-
-        addr = (message.sender.ip, message.sender.port)
-        self.transport.sendto(serialized, addr)
+        self._respond(message, response)
 
     def find_node_received(self, request):
         # look in the table and return the nodes closest to the requested node
@@ -187,10 +186,7 @@ class Protocol(asyncio.DatagramProtocol):
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
         response = create_find_node_response(self.node, request.nonce, closest)
-        serialized = response.SerializeToString()
-
-        addr = (request.sender.ip, request.sender.port)
-        self.transport.sendto(serialized, addr)
+        self._respond(request, response)
 
     def find_value_received(self, request):
         # if we have the value locally reply with a FoundValue
@@ -199,9 +195,7 @@ class Protocol(asyncio.DatagramProtocol):
             response = create_found_value(
                 self.node, request.nonce, targetkey, self.storage[targetkey]
             )
-            serialized = response.SerializeToString()
-            addr = (request.sender.ip, request.sender.port)
-            self.transport.sendto(serialized, addr)
+            self._respond(request, response)
             return
 
         # otherwise, return the nodes most likely to have the value
