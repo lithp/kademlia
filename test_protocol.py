@@ -200,6 +200,12 @@ async def test_response_to_ping():
     await asyncio.sleep(0.1)
     assert len(dgprotocol.messages) == 1
 
+    pong = dgprotocol.messages[0]
+    assert pong.nonce == ping.nonce
+    assert pong.sender.ip == 'localhost'
+    assert pong.sender.port == 3000
+    assert pong.sender.nodeid == protocol.write_nodeid(0b1000)
+
 @pytest.mark.asyncio
 async def test_responds_to_find_node():
     pass
