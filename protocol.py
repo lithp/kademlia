@@ -106,8 +106,7 @@ class Protocol(asyncio.DatagramProtocol):
         targetnodeid: int = read_nodeid(request.findNode.key)
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
-        response = create_response(self.node, request)
-        create_find_node_response(response, closest)
+        response = create_find_node_response(self.node, request.nonce, closest)
         serialized = response.SerializeToString()
 
         addr = (request.sender.ip, request.sender.port)
@@ -142,45 +141,34 @@ def create_message(node: core.Node) -> Message:
 
     return message
 
-def create_response(node: core.Node, request: Message) -> Message:
+def create_response(node: core.Node, request_nonce: bytes) -> Message:
     message = create_message(node)
-    message.nonce = request.nonce
+    message.nonce = request_nonce
     return message
 
-def create_find_node_response(stub: Message, nodes: typing.List[core.Node]):
+def create_find_node_response(
+        node: core.Node, nonce: bytes, nodes: typing.List[core.Node]) -> Message:
+    message = create_response(node, nonce)
     for node in nodes:
-        neighbor = stub.findNodeResponse.neighbors.add()
+        neighbor = message.findNodeResponse.neighbors.add()
         neighbor.ip = node.addr
         neighbor.port = node.port
         neighbor.nodeid = write_nodeid(node.nodeid)
+    return message
 
-def create_find_node(stub: Message, targetnodeid: int):
-    stub.findNode.key = write_nodeid(targetnodeid)
+def create_find_node(node: core.Node, targetnodeid: int) -> Message:
+    message = create_message(node)
+    message.findNode.key = write_nodeid(targetnodeid)
+    return message
 
-# This should use data from our Node!
 def create_ping(node: core.Node) -> Message:
-    message = Message()
-
-    message.sender.ip = node.addr
-    message.sender.port = node.port
-    message.sender.nodeid = write_nodeid(node.nodeid)
-
-    message.nonce = newnonce()
-
+    message = create_message(node)
     message.ping.SetInParent()
-
     return message
 
 def create_pong(node: core.Node, nonce: bytes) -> Message:
-    message = Message()
-
-    message.sender.ip = node.addr
-    message.sender.port = node.port
-    message.sender.nodeid = write_nodeid(node.nodeid)
-
-    message.nonce = nonce
+    message = create_response(node, nonce)
     message.pong.SetInParent()
-
     return message
 
 class Server:

@@ -222,8 +222,7 @@ async def test_responds_to_find_node():
     # Ask it for some random node
     remote_node = core.Node(addr='localhost', port=3002, nodeid=0b1001)
 
-    request = protocol.create_message(remote_node)
-    protocol.create_find_node(request, targetnodeid=0b10000)
+    request = protocol.create_find_node(remote_node, targetnodeid=0b10000)
     serialized = request.SerializeToString()
     transport.sendto(serialized, ('localhost', 3000))
 
