@@ -213,16 +213,3 @@ class Server:
         # which are closest to the requested id
 
         pass
-
-async def main():
-
-    server = Server()
-    await server.listen(3000)
-
-    try:
-        await asyncio.sleep(1000)
-    finally:
-        server.stop()
-
-if __name__ == '__main__':
-    asyncio.run(main())
