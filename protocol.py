@@ -54,12 +54,7 @@ class Protocol(asyncio.DatagramProtocol):
             print(data)
             return
 
-        # TODO: Parsing the message belongs elsewhere
-        remote = core.Node(
-            addr=message.sender.ip,
-            port=message.sender.port,
-            nodeid=read_nodeid(message.sender.nodeid)
-        )
+        remote = read_node(message.sender)
         try:
             self.table.node_seen(remote)
         except core.NoRoomInBucket:
