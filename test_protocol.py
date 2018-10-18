@@ -333,13 +333,13 @@ async def test_sending_find_node_response():
 
     # schedule a response to be sent when our mock receives the FindNode
     future = mockserver.next_message_future()
-    async def respond():
-        request = await future
+    def respond(future):
+        request = future.result()
         response = protocol.create_find_node_response(
             remote, request.nonce, nodes
         )
         mockserver.send(('localhost', 3000), response)
-    task = asyncio.create_task(respond())  # schedule it to be called
+    future.add_done_callback(respond)
 
     # send FIND_NODE and see that we correctly parse the response!
     targetnodeid = 0b1010
