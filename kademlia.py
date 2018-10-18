@@ -40,8 +40,8 @@ class Node():
         #       No, it certainly is not
         await self.server.ping(address, port)
 
-        # perform a FIND_NODE for your own ID
-        await self.server.find_node(self.nodeid)
+        # perform a node lookup for your own ID
+        await self.server.node_lookup(self.nodeid)
 
         # refresh all buckets further away than our closest neighbor
         pass

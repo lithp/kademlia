@@ -1,7 +1,9 @@
 import asyncio
 import binascii
+import collections
 import hashlib
 import heapq
+import itertools
 import queue
 import random
 import typing
@@ -222,6 +224,7 @@ class Server:
 
         self.table = core.RoutingTable(k, mynodeid)
 
+        self.k = k
         self.node = None
         self.nodeid = mynodeid
 
@@ -271,14 +274,39 @@ class Server:
         # TODO: check that we were given back a pong?
         await future
 
-    async def _node_lookup(self, targetnodeid: int) -> typing.List[core.Node]:
+    async def node_lookup(self, targetnodeid: int) -> typing.List[core.Node]:
         alpha = 3
 
-        closest = self.table.closest_to_me(alpha)
-        coros = [self.find_node(node, targetnodeid) for node in closest]
+        queried = collections.defaultdict(lambda: False)
+        seen_nodes = list()
 
-        # TODO: set some kind of timeout!
-        results = await asyncio.gather(coros)
+        to_query = self.table.closest_to_me(alpha)
+
+        while True:
+            coros = [self.find_node(node, targetnodeid) for node in to_query]
+            for node in to_query:
+                queried[node.nodeid] = True
+
+            # TODO: set some kind of timeout!
+            results = await asyncio.gather(coros)
+
+            new_nodes = (node for result in results for node in result)
+
+            seen_nodes = sorted(
+                itertools.chain(seen_nodes, new_nodes),
+                key=lambda node: core.node_distance(node.nodeid, targetnodeid)
+            )[:self.k]
+
+            to_query = list(itertools.islice(
+                (node for node in seen_nodes if nodeid not in queried),
+                alpha
+            ))
+
+            if len(to_query) == 0:
+                # We have queried all of the k closest nodes to targetnodeid
+                break
+
+        return
 
         # 1. Pick the alpha closest nodes to nodeid, send FIND_NODE to all of them
         # you'll get a FindNodeResponse from each of them, which all have k entries
