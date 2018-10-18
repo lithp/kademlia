@@ -28,10 +28,17 @@ def test_read_write_nodeid():
 class RecordingDatagramProtocol(asyncio.DatagramProtocol):
     def __init__(self):
         self.messages = list()
+        self.future = None
     def datagram_received(self, data, addr):
         message = Message()
         message.ParseFromString(data)
         self.messages.append(message)
+        if self.future:
+            self.future.set_result(message)
+            self.future = None
+    def next_message_future(self):
+        self.future = asyncio.get_running_loop().create_future()
+        return self.future
 
 
 class MockServer:
@@ -44,6 +51,8 @@ class MockServer:
     @property
     def messages(self):
         return self.protocol.messages
+    def next_message_future(self):
+        return self.protocol.next_message_future()
 
 
 async def startmockserver():
@@ -72,25 +81,18 @@ async def test_nonce_matching():
     assert not future.done()  # we have not yet sent the message
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=110)
-
     pong_message = protocol.create_pong(remote_node, ping_message.nonce)
     pong_message.nonce = b'garbage'
-
     mockserver.send(('localhost', 3000), pong_message)
 
     await asyncio.sleep(0.1)
     assert not future.done()  # we sent a message with the wrong nonce
 
     pong_message = protocol.create_pong(remote_node, ping_message.nonce)
-
     mockserver.send(('localhost', 3000), pong_message)
 
     # we sent a conforming PONG, the future should now be set!
-    try:
-        await asyncio.wait_for(future, timeout=0.1)
-    except asyncio.TimeoutError:
-        assert False, 'the future was never set'
-
+    await asyncio.sleep(0.1)
     assert future.done()
 
 
@@ -110,10 +112,9 @@ async def test_incoming_messages_notify_routing_table():
     pong_message = protocol.create_pong(remote_node, b'garbage')
     mockserver.send(('localhost', 3000), pong_message)
 
-    # 3. Look for the node in the routing table and see that it is good
+    # 3. Look for the node in the routing table
     with pytest.raises(KeyError):
         server.table.last_seen_for(remoteid)
-
     await asyncio.sleep(0.1)
     assert server.table.last_seen_for(remoteid) is not None
 
@@ -135,10 +136,12 @@ async def test_server_send():
     # spin up a server
     assert len(mockserver.messages) == 0
 
+    future = mockserver.next_message_future()
+
     message = protocol.create_ping(local_node)
     server.send(message, remote_addr)
 
-    await asyncio.sleep(0.1)
+    await future
     assert len(mockserver.messages) == 1
 
 
@@ -181,6 +184,8 @@ async def test_response_to_ping():
     server = protocol.Server(k=2, mynodeid=0b1000)
     await server.listen(3000)
 
+    future = mockserver.next_message_future()
+
     remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
     ping = protocol.create_ping(remote_node)
     mockserver.send(('localhost', 3000), ping)
@@ -189,7 +194,7 @@ async def test_response_to_ping():
     # a pong back to us
 
     assert len(mockserver.messages) == 0
-    await asyncio.sleep(0.1)
+    await future
     assert len(mockserver.messages) == 1
 
     pong = mockserver.messages[0]
@@ -208,13 +213,12 @@ async def test_responds_to_find_node():
 
     # Ask it for some random node
     remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
-
     request = protocol.create_find_node(remote_node, targetnodeid=0b10000)
     mockserver.send(('localhost', 3000), request)
 
     # We should get a response back!
     assert len(mockserver.messages) == 0
-    await asyncio.sleep(0.1)
+    await mockserver.next_message_future()
     assert len(mockserver.messages) == 1
 
     # It should return a single element, us! (by sending it a message we added ourselves
@@ -242,7 +246,7 @@ async def test_responds_to_store():
 
     # We should get a response back!
     assert len(mockserver.messages) == 0
-    await asyncio.sleep(0.1)
+    await mockserver.next_message_future()
     assert len(mockserver.messages) == 1
 
     # It should return a StoreResponse
@@ -269,7 +273,7 @@ async def test_responds_to_find_value_when_no_value():
 
     # We should get a response back!
     assert len(mockserver.messages) == 0
-    await asyncio.sleep(0.1)
+    await mockserver.next_message_future()
     assert len(mockserver.messages) == 1
 
     # It should return a FindNodeResponse
@@ -291,13 +295,13 @@ async def test_responds_to_find_value_when_has_value():
     mockserver.send(('localhost', 3000), request)
 
     assert len(mockserver.messages) == 0
-    await asyncio.sleep(0.1)
+    await mockserver.next_message_future()
     assert len(mockserver.messages) == 1
 
     request = protocol.create_find_value(remote_node, key=b'abc')
     mockserver.send(('localhost', 3000), request)
 
-    await asyncio.sleep(0.1)
+    await mockserver.next_message_future()
     assert len(mockserver.messages) == 2
 
     # It should return a FoundValue
