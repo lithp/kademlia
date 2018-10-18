@@ -110,6 +110,10 @@ class RoutingTable:
 
     def closest(self, targetnodeid: int, n:int = None) -> typing.List[Node]:
         'Returns the k nodes we know of which are closest to key'
+        if targetnodeid == self.nodeid:
+            # _bucket_index_for will fail if we give it ourselves, we're not in any bucket
+            return self.closest_to_me(n)
+
         bucket_index = self._bucket_index_for(targetnodeid)
 
         if n is None:

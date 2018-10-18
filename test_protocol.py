@@ -373,3 +373,27 @@ async def test_node_lookup_one_empty_peer():
 
     await server.node_lookup(0b1010)
 
+
+@pytest.mark.asyncio
+async def test_node_lookup_finds_peer_through_peer():
+    'There exists a hop between us and the final peer'
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    intermediate = protocol.Server(k=2, mynodeid=0b1001)
+    await intermediate.listen(3001)
+
+    targetid = 0b1010
+
+    final = protocol.Server(k=2, mynodeid=targetid)
+    await final.listen(3002)
+
+    server.table.node_seen(intermediate.node)
+    intermediate.table.node_seen(final.node)
+
+    # If we perform a node lookup, we learn of the final node
+    with pytest.raises(KeyError):
+        server.table.last_seen_for(targetid)
+    await asyncio.wait_for(server.node_lookup(0b1010), timeout=0.1)
+    assert server.table.last_seen_for(targetid) is not None
+
