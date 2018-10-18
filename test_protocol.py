@@ -375,25 +375,34 @@ async def test_node_lookup_one_empty_peer():
 
 
 @pytest.mark.asyncio
-async def test_node_lookup_finds_peer_through_peer():
-    'There exists a hop between us and the final peer'
+async def test_node_lookup_finds_peer_through_peers():
+    'There exists 2 hops between us and the final peer'
     server = protocol.Server(k=2, mynodeid=0b1000)
     await server.listen(3000)
 
-    intermediate = protocol.Server(k=2, mynodeid=0b1001)
-    await intermediate.listen(3001)
+    first_hop = protocol.Server(k=2, mynodeid=0b1001)
+    await first_hop.listen(3001)
 
-    targetid = 0b1010
+    second_hop = protocol.Server(k=2, mynodeid=0b1010)
+    await second_hop.listen(3002)
+
+    targetid = 0b1011
 
     final = protocol.Server(k=2, mynodeid=targetid)
-    await final.listen(3002)
+    await final.listen(3003)
 
-    server.table.node_seen(intermediate.node)
-    intermediate.table.node_seen(final.node)
+    server.table.node_seen(first_hop.node)
+    first_hop.table.node_seen(second_hop.node)
+    second_hop.table.node_seen(final.node)
 
-    # If we perform a node lookup, we learn of the final node
+    # If we perform a node lookup we learn of the final node
     with pytest.raises(KeyError):
         server.table.last_seen_for(targetid)
-    await asyncio.wait_for(server.node_lookup(0b1010), timeout=0.1)
+    with pytest.raises(KeyError):
+        server.table.last_seen_for(second_hop.node.nodeid)
+
+    await server.node_lookup(targetid)
+
+    assert server.table.last_seen_for(second_hop.node.nodeid) is not None
     assert server.table.last_seen_for(targetid) is not None
 
