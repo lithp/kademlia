@@ -89,6 +89,15 @@ class RoutingTable:
         entry = bucket[nodeid]  # may raise KeyError if nodeid is not known
         return entry.last_seen
 
+    def first_occupied_bucket(self) -> int:
+        'Returns the bucket containing our closest known neighbor'
+        # TODO: write a test
+        for index in range(160):
+            bucket = self.buckets[index]
+            if len(bucket) > 0:
+                return index
+        raise IndexError
+
     @staticmethod
     def _i_centered_indexes(i: int, length: int) -> typing.Iterator[int]:
         'Generates a permutation of range(length)'

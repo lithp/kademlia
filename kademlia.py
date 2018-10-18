@@ -22,12 +22,8 @@ class Node():
         '''
         Runs when we haven't heard from any of the nodes in this bucket for over an hour
         '''
-
-        # 1. come up with a random ID in the bucket's range
         nodeid = core.random_key_in_bucket(self.nodeid, bucket)
-
-        # 2. perform a FIND_NODE for the ID
-        await self.server.find_node(nodeid)
+        await self.server.node_lookup(nodeid)
 
     async def bootstrap(self, address: core.Address, port:int):
         '''
@@ -46,5 +42,10 @@ class Node():
         await self.server.node_lookup(self.nodeid)
 
         # refresh all buckets further away than our closest neighbor
-        pass
+
+        # TODO: it's a smell that we have to dig so deeply to find the table
+        # TODO: it's probably safe to do these in parallel?
+        closest = self.server.table.first_occupied_bucket()
+        for index in range(closest, 160):
+            await self._refresh(index)
 

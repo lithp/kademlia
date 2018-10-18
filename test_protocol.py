@@ -405,4 +405,3 @@ async def test_node_lookup_finds_peer_through_peers():
 
     assert server.table.last_seen_for(second_hop.node.nodeid) is not None
     assert server.table.last_seen_for(targetid) is not None
-
