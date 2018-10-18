@@ -322,8 +322,6 @@ def test_parse_find_node_response():
 
 @pytest.mark.asyncio
 async def test_sending_find_node_response():
-    loop = asyncio.get_running_loop()
-
     # start our server
     server = protocol.Server(k=2, mynodeid=0b1000)
     await server.listen(3000)
@@ -331,31 +329,23 @@ async def test_sending_find_node_response():
     remote = core.Node(addr='localhost', port=3001, nodeid=0b1001)
     nodes = [core.Node(addr='localhost', port=i, nodeid=i) for i in range(5)]
 
-    # start the mock server
-    class MyDatagramProtocol(asyncio.DatagramProtocol):
-        def __init__(self):
-            self.messages = list()
-        def connection_made(self, transport):
-            self.transport = transport
-        def datagram_received(self, data, addr):
-            message = Message()
-            message.ParseFromString(data)
-            self.messages.append(message)
+    mockserver = await startmockserver()
 
-            response = protocol.create_find_node_response(
-                remote, message.nonce, nodes
-            )
-            serialized = response.SerializeToString()
-            self.transport.sendto(serialized, ('localhost', 3000))
-    transport, mdp = await loop.create_datagram_endpoint(
-        MyDatagramProtocol, local_addr = ('localhost', 3001)
-    )
+    # schedule a response to be sent when our mock receives the FindNode
+    future = mockserver.next_message_future()
+    async def respond():
+        request = await future
+        response = protocol.create_find_node_response(
+            remote, request.nonce, nodes
+        )
+        mockserver.send(('localhost', 3000), response)
+    task = asyncio.create_task(respond())  # schedule it to be called
 
     # send FIND_NODE and see that we correctly parse the response!
     targetnodeid = 0b1010
-    result = await server.find_node(remote, targetnodeid)
+    result = await asyncio.wait_for(server.find_node(remote, targetnodeid), timeout=0.1)
 
-    assert len(mdp.messages) == 1  # the mock server received a message
-    assert mdp.messages[0].HasField('findNode')  # Server sent a FindNode message
+    assert len(mockserver.messages) == 1  # the mock server received a message
+    assert mockserver.messages[0].HasField('findNode')  # Server sent a FindNode message
     assert result == nodes  # Server parsed the nodes we gave it
 
