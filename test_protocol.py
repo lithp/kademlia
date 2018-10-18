@@ -98,6 +98,7 @@ async def test_incoming_messages_notify_routing_table():
     await asyncio.sleep(0.1)
     assert server.table.last_seen_for(remoteid) is not None
 
+
 class RecordingDatagramProtocol(asyncio.DatagramProtocol):
     def __init__(self):
         self.messages = list()
@@ -339,4 +340,52 @@ async def test_responds_to_find_value_when_has_value():
     assert response.HasField('foundValue')
     assert response.foundValue.key == b'abc'
     assert response.foundValue.value == b'abc'
+
+def test_parse_find_node_response():
+    nodes = [core.Node(addr='localhost', port=i, nodeid=i) for i in range(5)]
+
+    find_node_response = protocol.create_find_node_response(nodes[0], b'', nodes[0:])
+
+    parsed_nodes = protocol.parse_find_node_response(find_node_response)
+
+    assert parsed_nodes == nodes[0:]
+
+@pytest.mark.asyncio
+async def test_sending_find_node_response():
+    loop = asyncio.get_running_loop()
+
+    # start our server
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote = core.Node(addr='localhost', port=3001, nodeid=0b1001)
+    nodes = [core.Node(addr='localhost', port=i, nodeid=i) for i in range(5)]
+
+    # start the mock server
+    class MyDatagramProtocol(asyncio.DatagramProtocol):
+        def __init__(self):
+            self.messages = list()
+        def connection_made(self, transport):
+            self.transport = transport
+        def datagram_received(self, data, addr):
+            message = Message()
+            message.ParseFromString(data)
+            self.messages.append(message)
+
+            response = protocol.create_find_node_response(
+                remote, message.nonce, nodes
+            )
+            serialized = response.SerializeToString()
+            self.transport.sendto(serialized, ('localhost', 3000))
+    transport, mdp = await loop.create_datagram_endpoint(
+        MyDatagramProtocol, local_addr = ('localhost', 3001)
+    )
+
+    # send FIND_NODE and see that we correctly parse the response!
+    targetnodeid = 0b1010
+    result = await server.find_node(remote, targetnodeid)
+
+    assert len(mdp.messages) == 1  # the mock server received a message
+    assert mdp.messages[0].HasField('findNode')  # Server sent a FindNode message
+    assert result == nodes  # Server parsed the nodes we gave it
 

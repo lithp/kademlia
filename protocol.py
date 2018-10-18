@@ -1,6 +1,8 @@
 import asyncio
 import binascii
 import hashlib
+import heapq
+import queue
 import random
 import typing
 
@@ -93,6 +95,15 @@ def create_find_value(node: core.Node, key: bytes) -> Message:
     message = create_message(node)
     message.findValue.key = key
     return message
+
+def parse_find_node_response(response: Message) -> typing.List[core.Node]:
+    return [
+        core.Node(
+            addr=neighbor.ip,
+            port=neighbor.port,
+            nodeid=read_nodeid(neighbor.nodeid)
+        ) for neighbor in response.findNodeResponse.neighbors
+    ]
 
 class Protocol(asyncio.DatagramProtocol):
 
@@ -256,11 +267,101 @@ class Server:
     async def ping(self, addr):
         pingmsg = create_ping(self.node)
         future = self.send(pingmsg, addr)
+        # TODO: timeout if this takes too long?
+        # TODO: check that we were given back a pong?
         await future
 
-    async def find_node(self, nodeid: int):
+    async def _node_lookup(self, targetnodeid: int) -> typing.List[core.Node]:
+        alpha = 3
 
-        # you'll hopefully receive a FindNodeResponse, which contains a list of nodes
-        # which are closest to the requested id
+        closest = self.table.closest_to_me(alpha)
+        coros = [self.find_node(node, targetnodeid) for node in closest]
 
-        pass
+        # TODO: set some kind of timeout!
+        results = await asyncio.gather(coros)
+
+        # 1. Pick the alpha closest nodes to nodeid, send FIND_NODE to all of them
+        # you'll get a FindNodeResponse from each of them, which all have k entries
+
+        # the lookup terminates when we've heard back from the k closest nodes we know of
+
+        # return those k closest nodes
+
+        class SortedNodes:
+            def __init__(self, targetnodeid: int):
+                self.nodes = list()
+                self.nodeid = targetnodeid
+            def add(self, node: core.Node):
+                distance = core.node_distance(self.nodeid, node.nodeid)
+                heapq.heappush(self.nodes, (distance, node))
+            def pop(self) -> core.Node:
+                # raises IndexError if no nodes are left
+                _, node = heapq.peappop(self.nodes)
+                return node
+            def remove(self, nodeid: int):
+                # runs in linear time
+                index= None
+                for i, node in enumerate(self.nodes):
+                    if node.nodeid == nodeid:
+                        index = i
+                        break
+                else:
+                    raise KeyError(f'node {nodeid} does not exist!')
+
+                self.nodes[i] = self.nodes[-1]
+                self.nodes.pop()
+                heapq.heapify(self.nodes)
+
+        class CrawlHelper:
+            def __init__(self, k):
+                # this list of nodes will never be very big, maybe you can just walk it
+                # every time you want to look for the unqueried ones?
+
+                # TODO: how to you keep a priority queue which also lets you remove
+                # elements?
+                self.k = k
+                self.unqueried = list()
+                self.queried = list()
+                self.responded = list()
+            def add_nodes(nodes: typing.List[core.Node]):
+                self.unqueried.extend(nodes)
+            def closest_unqueried_node() -> core.Node:
+                '''Which node should we query next?'''
+                pass
+            def queried_node(node: core.Node):
+                '''We've already sent a query to this node'''
+            def node_timed_out(node: core.Node):
+                '''This node is taking a while to respond, remove it from play'''
+                pass
+            def node_responded(node: core.Node):
+                '''This node has responded, mark it as such (and return it to play)'''
+                pass
+            def done() -> bool:
+                '''We've heard back from the k closest nodes still in play'''
+                pass
+
+        # fire off all alpha requests
+        # wait on them, and when a request completes:
+
+        '''
+        My interpretation:
+        1. always have alpha requests in-flight
+        2. keep track of the k closest nodes to your target
+           (add to this list as responses come in)
+        3. don't query any node more than once
+        4. quit when you've queried all of the k-closest nodes you know of
+        - this isn't quite right
+        you want to hold onto more than k nodes, nodes which never respond are removed
+        from your list (until they do respond) and you continue until you've heard back
+        from the k-closest nodes still in consideration
+        '''
+
+    async def find_node(self, remote: core.Node, targetnodeid: int) -> typing.List[core.Node]:
+        'Send a FIND_NODE to remote and return the result'
+        message = create_find_node(self.node, targetnodeid)
+        addr = (remote.addr, remote.port)
+        future = self.send(message, addr)
+        result = await future
+        # TODO: throw an error if we weren't given a FindNodeResponse
+        return parse_find_node_response(result)
+

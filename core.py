@@ -106,9 +106,12 @@ class RoutingTable:
                 break
             width += 1
 
-    def closest(self, targetnodeid: int) -> typing.List[Node]:
+    def closest(self, targetnodeid: int, n:int = None) -> typing.List[Node]:
         'Returns the k nodes we know of which are closest to key'
         bucket_index = self._bucket_index_for(targetnodeid)
+
+        if n is None:
+            n = self.k
 
         nodes = []
         for indexes in self._i_centered_indexes(bucket_index, len(self.buckets)):
@@ -121,14 +124,17 @@ class RoutingTable:
             )
             nodes.extend(closest)
 
-            if len(nodes) >= self.k:
-                return nodes[:self.k]
+            if len(nodes) >= n:
+                return nodes[:n]
 
         # we weren't able to find k nodes so we'll return every node we have
         return nodes
 
-    def closest_to_me(self) -> typing.List[Node]:
+    def closest_to_me(self, n:int = None) -> typing.List[Node]:
         'Returns up to k nodes which are closest to self.nodeid'
+        if n is None:
+            n = self.k
+
         nodes = []
         for bucket in self.buckets:
             new_nodes = (entry.node for entry in bucket.values())
@@ -138,8 +144,8 @@ class RoutingTable:
             )
             nodes.extend(closest)
 
-            if len(nodes) >= self.k:
-                return nodes[:self.k]
+            if len(nodes) >= n:
+                return nodes[:n]
 
     @staticmethod
     def _first_element_of_ordered_dict(dictionary: collections.OrderedDict):

@@ -36,6 +36,8 @@ class Node():
 
         # When the remote node responds it will be added to the relevant k-bucket
         # TODO: handle timeouts!
+        # TODO: is this address type correct?
+        #       No, it certainly is not
         await self.server.ping(address, port)
 
         # perform a FIND_NODE for your own ID
