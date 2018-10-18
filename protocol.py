@@ -275,6 +275,8 @@ class Server:
         return future
 
     async def ping(self, remote):
+        if not self.transport:
+            raise Exception('the server is not running yet!')
         pingmsg = create_ping(self.node)
         future = self.send(pingmsg, remote)
         # TODO: timeout if this takes too long?
@@ -282,6 +284,8 @@ class Server:
         await future
 
     async def node_lookup(self, targetnodeid: int) -> typing.List[core.Node]:
+        if not self.transport:
+            raise Exception('the server is not running yet!')
         alpha = 3
 
         queried = collections.defaultdict(lambda: False)
@@ -314,7 +318,7 @@ class Server:
             if len(to_query) == 0:
                 break
 
-        return
+        return seen_nodes  # todo: test this return
         '''
         A way you might be able to parallalize this:
         1. always have alpha requests in-flight
@@ -330,9 +334,20 @@ class Server:
 
     async def find_node(self, remote: core.Node, targetnodeid: int) -> typing.List[core.Node]:
         'Send a FIND_NODE to remote and return the result'
+        if not self.transport:
+            raise Exception('the server is not running yet!')
         message = create_find_node(self.node, targetnodeid)
         future = self.send(message, remote)
         result = await future
         # TODO: throw an error if we weren't given a FindNodeResponse
         return parse_find_node_response(result)
+
+    async def store(self, remote: core.Node, key: int, value: bytes):
+        if not self.transport:
+            raise Exception('the server is not running yet!')
+        # todo: write a test for this function
+        message = create_store(self.node, write_nodeid(key), value)
+        future = self.send(message, remote)
+        result = await future
+        return  # TODO: look at and verify the result
 

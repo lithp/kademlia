@@ -49,3 +49,14 @@ class Node():
         for index in range(closest, 160):
             await self._refresh(index)
 
+    async def store_value(self, key: int, value: bytes):
+        'Find the k closest nodes and send a STORE RPC to all of them'
+        closest_nodes = await self.server.node_lookup(key)
+
+        # todo: timeouts
+        coros = [
+            self.server.store(node, key, value)
+            for node in closest_nodes
+        ]
+        await asyncio.gather(*coros)
+

@@ -1,0 +1,52 @@
+import asyncio
+import pytest
+
+
+import kademlia
+import protocol
+
+
+@pytest.mark.asyncio
+async def test_bootstrapping():
+    node = kademlia.Node('localhost', 3000)
+    await node.listen()
+
+    remote = kademlia.Node('localhost', 3001)
+    await remote.listen()
+
+    far = kademlia.Node('localhost', 3002)
+    await far.listen()
+
+    remote.server.table.node_seen(far.node)
+
+    await node.bootstrap('localhost', 3001)
+    assert node.server.table.last_seen_for(far.node.nodeid) is not None
+
+
+@pytest.mark.asyncio
+async def test_store():
+    node = kademlia.Node('localhost', 3000)
+    await node.listen()
+
+    first = protocol.Server(k=2, mynodeid=0b1000)
+    second = protocol.Server(k=2, mynodeid=0b1001)
+    third = protocol.Server(k=2, mynodeid=0b1010)
+
+    await first.listen(3001)
+    await second.listen(3002)
+    await third.listen(3003)
+
+    await node.bootstrap('localhost', 3001)
+
+    first.table.node_seen(second.node)
+    second.table.node_seen(third.node)
+
+    await asyncio.wait_for(node.store_value(key=0b1010, value=b'hello'), timeout=0.1)
+
+    encoded = protocol.write_nodeid(0b1010)
+    storage = lambda server: server.protocol.storage
+
+    assert encoded in storage(third)
+    assert encoded in storage(second)
+    assert encoded not in storage(first)  # first is not in the first k peers
+
