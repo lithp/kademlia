@@ -134,6 +134,8 @@ class Protocol(asyncio.DatagramProtocol):
             return
 
         remote = read_node(message.sender)
+        if remote.nodeid == self.node.nodeid:
+            assert False, 'received a message from ourselves'
         try:
             self.table.node_seen(remote)
         except core.NoRoomInBucket:
@@ -244,7 +246,7 @@ class Server:
             self.transport.close()
             self.transport = None
 
-    def send(self, message, addr):
+    def send(self, message, remote: core.Node):
         '''
         Sends the message and returns a future. The Future will be triggered when the
         remote node sends a response to this message.
@@ -252,12 +254,17 @@ class Server:
         if not self.transport:
             raise Exception('the server is not running yet!')
 
+        if remote == self.node:
+            raise Exception("we've been asked to send a message to ourself!")
+
         loop = asyncio.get_running_loop()
         future = loop.create_future()
 
         # when a response comes in with this nonce Protocol will trigger the future
         nonce = message.nonce
         self.protocol.register_nonce(nonce, future)
+
+        addr = (remote.addr, remote.port)
 
         # TODO: where do we check that the message is not too large?
         serialized = message.SerializeToString()
@@ -267,9 +274,9 @@ class Server:
         # TODO: when a timeout happens, alert the RoutingTable so we mark this node flaky
         return future
 
-    async def ping(self, addr):
+    async def ping(self, remote):
         pingmsg = create_ping(self.node)
-        future = self.send(pingmsg, addr)
+        future = self.send(pingmsg, remote)
         # TODO: timeout if this takes too long?
         # TODO: check that we were given back a pong?
         await future
@@ -280,6 +287,7 @@ class Server:
         queried = collections.defaultdict(lambda: False)
         seen_nodes = list()
 
+        # start with the alpha nodes closest to me
         to_query = self.table.closest_to_me(alpha)
 
         while True:
@@ -287,23 +295,23 @@ class Server:
             for node in to_query:
                 queried[node.nodeid] = True
 
-            # TODO: set some kind of timeout!
-            results = await asyncio.gather(coros)
-
+            # collect all the responses, merge them into our list, keep the closest k
+            results = await asyncio.gather(*coros)  # TODO: set some kind of timeout!
             new_nodes = (node for result in results for node in result)
-
+            new_nodes = (node for node in new_nodes if node.nodeid != self.nodeid)
             seen_nodes = sorted(
                 itertools.chain(seen_nodes, new_nodes),
                 key=lambda node: core.node_distance(node.nodeid, targetnodeid)
             )[:self.k]
 
+            # for the next round, send queries to alpha of the closest unqueried nodes
             to_query = list(itertools.islice(
-                (node for node in seen_nodes if nodeid not in queried),
+                (node for node in seen_nodes if node.nodeid not in queried),
                 alpha
             ))
 
+            # finish once you've queried all of the k closest nodes you know of
             if len(to_query) == 0:
-                # We have queried all of the k closest nodes to targetnodeid
                 break
 
         return
@@ -387,8 +395,7 @@ class Server:
     async def find_node(self, remote: core.Node, targetnodeid: int) -> typing.List[core.Node]:
         'Send a FIND_NODE to remote and return the result'
         message = create_find_node(self.node, targetnodeid)
-        addr = (remote.addr, remote.port)
-        future = self.send(message, addr)
+        future = self.send(message, remote)
         result = await future
         # TODO: throw an error if we weren't given a FindNodeResponse
         return parse_find_node_response(result)

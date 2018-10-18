@@ -79,7 +79,7 @@ async def test_nonce_matching():
     await server.listen(3000)
 
     ping_message = protocol.create_ping(local_node)
-    future = server.send(ping_message, ('localhost', 3001))
+    future = server.send(ping_message, remote_node)
 
     await asyncio.sleep(0.1)
     assert not future.done()  # we have not yet sent the message
@@ -133,7 +133,6 @@ async def test_server_send():
     await server.listen(3000)
 
     local_node = core.Node(addr='localhost', port=3000, nodeid=0b1000)
-    remote_addr = ('localhost', 3001)
     remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
 
     # spin up a server
@@ -142,7 +141,7 @@ async def test_server_send():
     future = mockserver.next_message_future()
 
     message = protocol.create_ping(local_node)
-    server.send(message, remote_addr)
+    server.send(message, remote_node)
 
     await future
     assert len(mockserver.messages) == 1
@@ -159,11 +158,11 @@ async def test_server_ping():
     server = protocol.Server(k=2, mynodeid=0b1000)
     await server.listen(3000)
 
-    remote_addr = ('localhost', 3001)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
 
     assert len(mockserver.messages) == 0
 
-    coro = server.ping(remote_addr)
+    coro = server.ping(remote_node)
     task = asyncio.get_running_loop().create_task(coro)
     done, pending = await asyncio.wait({task}, timeout=0.2)
     assert task in pending
@@ -171,7 +170,6 @@ async def test_server_ping():
     assert len(mockserver.messages) == 1
     ping_message = mockserver.messages[0]
 
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
     pong_message = protocol.create_pong(remote_node, ping_message.nonce)
     mockserver.send(pong_message)
 
@@ -351,4 +349,27 @@ async def test_sending_find_node_response():
     assert len(mockserver.messages) == 1  # the mock server received a message
     assert mockserver.messages[0].HasField('findNode')  # Server sent a FindNode message
     assert result == nodes  # Server parsed the nodes we gave it
+
+
+@pytest.mark.asyncio
+async def test_node_lookup_no_peers():
+    'Nothing strange happens when there are no remote nodes'
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    await server.node_lookup(0b1010)
+
+
+@pytest.mark.asyncio
+async def test_node_lookup_one_empty_peer():
+    'We know of one remote peer which knows of nobody'
+    server = protocol.Server(k=2, mynodeid=0b1000)
+    await server.listen(3000)
+
+    remote = protocol.Server(k=2, mynodeid=0b1001)
+    await remote.listen(3001)
+
+    server.table.node_seen(remote.node)
+
+    await server.node_lookup(0b1010)
 

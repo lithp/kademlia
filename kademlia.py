@@ -38,7 +38,9 @@ class Node():
         # TODO: handle timeouts!
         # TODO: is this address type correct?
         #       No, it certainly is not
-        await self.server.ping(address, port)
+        # TODO: that we have to build a fake node here is likely a bad smell
+        remote = core.Node(addr=address, port=port, nodeid=b'garbage')
+        await self.server.ping(remote)
 
         # perform a node lookup for your own ID
         await self.server.node_lookup(self.nodeid)

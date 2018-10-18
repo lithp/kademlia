@@ -2,7 +2,9 @@ from __future__ import annotations  # allow forward references (PEP 563)
 
 import collections
 import datetime
+import functools
 import ipaddress
+import itertools
 import random
 import typing
 
@@ -113,39 +115,44 @@ class RoutingTable:
         if n is None:
             n = self.k
 
-        nodes = []
-        for indexes in self._i_centered_indexes(bucket_index, len(self.buckets)):
-            # indexes is a tuple of buckets to check next
-            buckets = [self.buckets[index] for index in indexes]
-            new_nodes = (entry.node for bucket in buckets for entry in bucket.values())
-            closest = sorted(
-                new_nodes,
-                key=lambda node: node_distance(targetnodeid, node.nodeid)
-            )
-            nodes.extend(closest)
-
-            if len(nodes) >= n:
-                return nodes[:n]
-
-        # we weren't able to find k nodes so we'll return every node we have
-        return nodes
+        bucket_indexes = self._i_centered_indexes(bucket_index, 160)
+        return self._closest_nodes(targetnodeid, n, bucket_indexes)
 
     def closest_to_me(self, n:int = None) -> typing.List[Node]:
         'Returns up to k nodes which are closest to self.nodeid'
         if n is None:
             n = self.k
 
-        nodes = []
-        for bucket in self.buckets:
-            new_nodes = (entry.node for entry in bucket.values())
-            closest = sorted(
-                new_nodes,
-                key=lambda node: node_distance(self.nodeid, node.nodeid)
-            )
-            nodes.extend(closest)
+        buckets_to_check = ([i] for i in range(160))
+        return self._closest_nodes(self.nodeid, n, buckets_to_check)
 
-            if len(nodes) >= n:
-                return nodes[:n]
+    def _closest_nodes(self, targetnodeid: int, n: int, bucket_iterator):
+        # TODO: this was a fun experiment but it's slower and harder to read than the
+        #       imperative code, you should probably switch it back
+        bucket_iterator: typing.Iterator[typing.List[int]]
+
+        # bucket_iterator returns a sequence of buckets to check, each element in the
+        # sequence will contain nodes which are further from the target than the previous
+        # element. However, each element may contain multiple buckets, and those buckets
+        # have no guaranteed ordering. So, the first step is to take each element and
+        # merge the buckets inside them
+
+        bucket_contents = lambda index: [val.node for val in self.buckets[index].values()]
+
+        merged_buckets = (
+            itertools.chain.from_iterable(
+                (bucket_contents(index) for index in bucket_index_list)
+            )
+            for bucket_index_list in bucket_iterator
+        )
+
+        dist_from_target = lambda node: node_distance(targetnodeid, node.nodeid)
+        sort_nodes = lambda nodes: sorted(nodes, key=dist_from_target)
+
+        sorted_buckets = (sort_nodes(bucket) for bucket in merged_buckets)
+        sorted_nodes = itertools.chain.from_iterable(sorted_buckets)
+
+        return list(itertools.islice(sorted_nodes, n))
 
     @staticmethod
     def _first_element_of_ordered_dict(dictionary: collections.OrderedDict):
