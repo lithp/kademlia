@@ -73,6 +73,7 @@ async def test_nonce_matching():
     mockserver = await startmockserver(3000)
 
     local_node = core.Node(addr='localhost', port=3000, nodeid=100)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=110)
 
     server = protocol.Server(k=2, mynodeid=100)
     await server.listen(3000)
@@ -83,7 +84,6 @@ async def test_nonce_matching():
     await asyncio.sleep(0.1)
     assert not future.done()  # we have not yet sent the message
 
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=110)
     pong_message = protocol.create_pong(remote_node, ping_message.nonce)
     pong_message.nonce = b'garbage'
     mockserver.send(pong_message)
