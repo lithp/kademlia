@@ -210,4 +210,3 @@ class RoutingTable:
         'Removes this node from the routing table'
         bucket: collections.OrderedDict = self._bucket_for(nodeid)
         del bucket[nodeid]
-

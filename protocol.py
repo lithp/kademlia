@@ -90,11 +90,11 @@ class Server:
         self.node = None
         self.nodeid = mynodeid
 
-    async def listen(self, port):
+    async def listen(self, addr, port):
         loop = asyncio.get_running_loop()
-        local_addr = ('localhost', port)
+        local_addr = (addr, port)
 
-        self.node = core.Node(addr='localhost', port=port, nodeid=self.nodeid)
+        self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid)
 
         endpoint = loop.create_datagram_endpoint(
             lambda: Protocol(self.table, self.node, self.received_rpc),

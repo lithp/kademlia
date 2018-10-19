@@ -54,9 +54,9 @@ async def test_store():
     second = protocol.Server(k=2, mynodeid=ID(0b1001))
     third = protocol.Server(k=2, mynodeid=ID(0b1010))
 
-    await first.listen(3001)
-    await second.listen(3002)
-    await third.listen(3003)
+    await first.listen('localhost', 3001)
+    await second.listen('localhost', 3002)
+    await third.listen('localhost', 3003)
 
     await node.bootstrap('localhost', 3001)
 
@@ -81,9 +81,9 @@ async def test_value_lookup():
     second = protocol.Server(k=2, mynodeid=ID(0b1001))
     third = protocol.Server(k=2, mynodeid=ID(0b1010))
 
-    await first.listen(3001)
-    await second.listen(3002)
-    await third.listen(3003)
+    await first.listen('localhost', 3001)
+    await second.listen('localhost', 3002)
+    await third.listen('localhost', 3003)
 
     await node.bootstrap('localhost', 3001)
 

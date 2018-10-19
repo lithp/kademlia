@@ -16,7 +16,7 @@ class Node():
         self.server = protocol.Server(k, self.nodeid)
 
     async def listen(self):
-        await self.server.listen(self.port)
+        await self.server.listen(self.addr, self.port)
 
     async def _refresh(self, bucket: int):
         '''
