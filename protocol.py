@@ -284,8 +284,6 @@ class Server:
 
             # collect all the responses, merge them into our list, keep the closest k
             results = await asyncio.gather(*coros)  # TODO: set some kind of timeout!
-            if looking_for_value:
-                pass
             new_nodes = (node for result in results for node in result.nodes)
             new_nodes = (node for node in new_nodes if node.nodeid != self.nodeid)
             seen_nodes = sorted(
