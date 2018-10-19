@@ -242,7 +242,7 @@ async def test_responds_to_store():
     # Ask it for some random node
     remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
 
-    request = protocol.create_store(remote_node, key=b'abc', value=b'abc')
+    request = protocol.create_store(remote_node, key=0b100, value=b'abc')
     mockserver.send(request)
 
     # We should get a response back!
@@ -257,8 +257,8 @@ async def test_responds_to_store():
 
     # TODO: this is a horrible smell, put storage somewhere better!
     storage = server.protocol.storage
-    assert b'abc' in storage
-    assert storage[b'abc'] == b'abc'
+    assert 0b100 in storage
+    assert storage[0b100] == b'abc'
 
 @pytest.mark.asyncio
 async def test_responds_to_find_value_when_no_value():
@@ -269,7 +269,7 @@ async def test_responds_to_find_value_when_no_value():
     await server.listen(3000)
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
-    request = protocol.create_find_value(remote_node, key=b'abc')
+    request = protocol.create_find_value(remote_node, key=0b100)
     mockserver.send(request)
 
     # We should get a response back!
@@ -292,24 +292,24 @@ async def test_responds_to_find_value_when_has_value():
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
 
-    request = protocol.create_store(remote_node, key=b'abc', value=b'abc')
+    request = protocol.create_store(remote_node, key=0b100, value=b'abc')
     mockserver.send(request)
 
     assert len(mockserver.messages) == 0
-    await mockserver.next_message_future()
+    await asyncio.wait_for(mockserver.next_message_future(), timeout=0.1)
     assert len(mockserver.messages) == 1
 
-    request = protocol.create_find_value(remote_node, key=b'abc')
+    request = protocol.create_find_value(remote_node, key=0b100)
     mockserver.send(request)
 
-    await mockserver.next_message_future()
+    await asyncio.wait_for(mockserver.next_message_future(), timeout=0.1)
     assert len(mockserver.messages) == 2
 
     # It should return a FoundValue
     response = mockserver.messages[1]
     assert response.nonce == request.nonce
     assert response.HasField('foundValue')
-    assert response.foundValue.key == b'abc'
+    assert response.foundValue.key == protocol.write_nodeid(0b100)
     assert response.foundValue.value == b'abc'
 
 def test_parse_find_node_response():

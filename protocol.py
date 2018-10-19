@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import binascii
 import collections
@@ -81,21 +83,25 @@ def create_store_response(node: core.Node, nonce: bytes) -> Message:
     message.storeResponse.SetInParent()
     return message
 
-def create_store(node: core.Node, key: bytes, value: bytes) -> Message:
+def create_store(node: core.Node, key: int, value: bytes) -> Message:
     message = create_message(node)
-    message.store.key = key
+    message.store.key = write_nodeid(key)
     message.store.value = value
     return message
 
-def create_found_value(node: core.Node, nonce: bytes, key: bytes, value: bytes) -> Message:
+def create_found_value(node: core.Node, nonce: bytes, key: int, value: bytes) -> Message:
     message = create_response(node, nonce)
-    message.foundValue.key = key
+    message.foundValue.key = write_nodeid(key)
     message.foundValue.value = value
     return message
 
-def create_find_value(node: core.Node, key: bytes) -> Message:
+class ValueFound(Exception):
+    def __init__(self, value: bytes):
+        self.value = value
+
+def create_find_value(node: core.Node, key: int) -> Message:
     message = create_message(node)
-    message.findValue.key = key
+    message.findValue.key = write_nodeid(key)
     return message
 
 def parse_find_node_response(response: Message) -> typing.List[core.Node]:
@@ -191,7 +197,7 @@ class Protocol(asyncio.DatagramProtocol):
         self._respond(message, ping)
 
     def store_received(self, message):
-        self.storage[message.store.key] = message.store.value
+        self.storage[read_nodeid(message.store.key)] = message.store.value
 
         response = create_store_response(self.node, message.nonce)
         self._respond(message, response)
@@ -206,7 +212,7 @@ class Protocol(asyncio.DatagramProtocol):
 
     def find_value_received(self, request):
         # if we have the value locally reply with a FoundValue
-        targetkey = request.findValue.key
+        targetkey = read_nodeid(request.findValue.key)
         if targetkey in self.storage:
             response = create_found_value(
                 self.node, request.nonce, targetkey, self.storage[targetkey]
@@ -219,7 +225,6 @@ class Protocol(asyncio.DatagramProtocol):
 
 
 class Server:
-
     def __init__(self, k: int, mynodeid: int):
         self.transport = None
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
@@ -284,23 +289,35 @@ class Server:
         await future
 
     async def node_lookup(self, targetnodeid: int) -> typing.List[core.Node]:
+        return await self._lookup(targetnodeid, looking_for_value=False)
+
+    async def value_lookup(self, targetnodeid: int):
+        try:
+            await self._lookup(targetnodeid, looking_for_value=True)
+        except ValueFound as ex:
+            return ex.value
+
+    async def _lookup(self, targetnodeid: int, looking_for_value: bool) -> typing.List[core.Node]:
+        alpha = 3
         if not self.transport:
             raise Exception('the server is not running yet!')
-        alpha = 3
+        # start with the alpha nodes closest to me
+        to_query = self.table.closest_to_me(alpha)
 
         queried = collections.defaultdict(lambda: False)
         seen_nodes = list()
 
-        # start with the alpha nodes closest to me
-        to_query = self.table.closest_to_me(alpha)
-
         while True:
-            coros = [self.find_node(node, targetnodeid) for node in to_query]
+            rpc_coro = self.find_value if looking_for_value else self.find_node
+            coros = [rpc_coro(node, targetnodeid) for node in to_query]
+
             for node in to_query:
                 queried[node.nodeid] = True
 
             # collect all the responses, merge them into our list, keep the closest k
             results = await asyncio.gather(*coros)  # TODO: set some kind of timeout!
+            if looking_for_value:
+                pass
             new_nodes = (node for result in results for node in result)
             new_nodes = (node for node in new_nodes if node.nodeid != self.nodeid)
             seen_nodes = sorted(
@@ -318,7 +335,7 @@ class Server:
             if len(to_query) == 0:
                 break
 
-        return seen_nodes  # todo: test this return
+        return seen_nodes
         '''
         A way you might be able to parallalize this:
         1. always have alpha requests in-flight
@@ -342,11 +359,22 @@ class Server:
         # TODO: throw an error if we weren't given a FindNodeResponse
         return parse_find_node_response(result)
 
+    async def find_value(self, remote: core.Node, targetnodeid: int) -> typing.List[core.Node]:
+        'Send a FIND_VALUE to remote and return the result'
+        if not self.transport:
+            raise Exception('the server is not running yet!')
+        message = create_find_value(self.node, targetnodeid)
+        future = self.send(message, remote)
+        result = await future
+        if result.HasField('foundValue'):
+            raise ValueFound(result.foundValue.value)
+        return parse_find_node_response(result)
+
     async def store(self, remote: core.Node, key: int, value: bytes):
         if not self.transport:
             raise Exception('the server is not running yet!')
         # todo: write a test for this function
-        message = create_store(self.node, write_nodeid(key), value)
+        message = create_store(self.node, key, value)
         future = self.send(message, remote)
         result = await future
         return  # TODO: look at and verify the result

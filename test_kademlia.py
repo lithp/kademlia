@@ -43,10 +43,9 @@ async def test_store():
 
     await asyncio.wait_for(node.store_value(key=0b1010, value=b'hello'), timeout=0.1)
 
-    encoded = protocol.write_nodeid(0b1010)
     storage = lambda server: server.protocol.storage
 
-    assert encoded in storage(third)
-    assert encoded in storage(second)
-    assert encoded not in storage(first)  # first is not in the first k peers
+    assert 0b1010 in storage(third)
+    assert 0b1010 in storage(second)
+    assert 0b1010 not in storage(first)  # first is not in the first k peers
 
