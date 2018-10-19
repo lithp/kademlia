@@ -8,6 +8,8 @@ import protocol
 
 logger = logging.getLogger('kademlia')
 
+ID = core.ID
+
 
 class Node():
     def __init__(self, addr: str, port: int, constants: core.Constants = None):

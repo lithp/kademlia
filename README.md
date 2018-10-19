@@ -1,10 +1,24 @@
 # kademlia
 An implementation of Kademlia
 
+# Getting started
+
+This requires python 3.7, I recommend using pyenv to install it. And there's a Pipfile, I
+recommend using pipenv to use it:
+
+```bash
+$ cd kademlia
+$ pyenv install 3.7.0
+$ pipenv shell
+$ py.test
+```
+
 # Usage
 
 ```python
 import asyncio
+
+from kademlia import Node, ID
 
 async def main():
     first = Node('localhost', 9000)
@@ -21,9 +35,15 @@ async def main():
     await second.bootstrap('localhost', 9002)
 
     # now that they're all talking to each other:
-    await first.store_value(0b100, b'hello')
-    value = await third.find_value(0b100)
+    await first.store_value(ID(0b100), b'hello')
+    value = await third.find_value(ID(0b100))
     assert value == b'hello'
 
 asyncio.run(main())
+```
+
+# Tests
+
+```bash
+$ py.test
 ```
