@@ -117,14 +117,16 @@ class Server:
 
     @must_be_running
     def send(self, message: messages.Message, remote: core.Node):
+        if remote == self.node:
+            raise Exception("we've been asked to send a message to ourself!")
+        return self.send_to(message, remote.addr, remote.port)
+
+    @must_be_running
+    def send_to(self, message: messages.Message, addr, port):
         '''
         Sends the message and returns a future. The Future will be triggered when the
         remote node sends a response to this message.
         '''
-
-        if remote == self.node:
-            raise Exception("we've been asked to send a message to ourself!")
-
         loop = asyncio.get_running_loop()
         future = loop.create_future()
 
@@ -132,12 +134,10 @@ class Server:
         nonce = message.nonce
         self.protocol.register_nonce(nonce, future)
 
-        addr = (remote.addr, remote.port)
-
         # TODO: where do we check that the message is not too large?
         message = message.finalize(self.node)
         serialized = message.SerializeToString()
-        self.transport.sendto(serialized, addr)
+        self.transport.sendto(serialized, (addr, port))
 
         # TODO: also timeout if we haven't received a response in x seconds
         # TODO: when a timeout happens, alert the RoutingTable so we mark this node flaky
@@ -200,9 +200,9 @@ class Server:
     # Outbound RPCs
 
     @must_be_running
-    async def ping(self, remote):
+    async def ping(self, addr, port: int):
         pingmsg = messages.Ping()
-        future = self.send(pingmsg, remote)
+        future = self.send_to(pingmsg, addr, port)
         # TODO: timeout if this takes too long?
         # TODO: check that we were given back a pong?
         await future

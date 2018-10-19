@@ -149,7 +149,7 @@ async def test_server_ping():
 
     assert len(mockserver.messages) == 0
 
-    coro = server.ping(remote_node)
+    coro = server.ping('localhost', 3001)
     task = asyncio.get_running_loop().create_task(coro)
     done, pending = await asyncio.wait({task}, timeout=0.2)
     assert task in pending
