@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import binascii
 import collections
+import functools
 import hashlib
 import heapq
 import itertools
@@ -257,18 +258,25 @@ class Server:
         )
         self.transport, self.protocol = await endpoint
 
+    def must_be_running(func):
+        @functools.wraps(func)
+        def run(self, *args, **kwargs):
+            if not self.transport:
+                raise Exception('the server is not running yet!')
+            return func(self, *args, **kwargs)
+        return run
+
     def stop(self):
         if self.transport:
             self.transport.close()
             self.transport = None
 
+    @must_be_running
     def send(self, message, remote: core.Node):
         '''
         Sends the message and returns a future. The Future will be triggered when the
         remote node sends a response to this message.
         '''
-        if not self.transport:
-            raise Exception('the server is not running yet!')
 
         if remote == self.node:
             raise Exception("we've been asked to send a message to ourself!")
@@ -290,28 +298,28 @@ class Server:
         # TODO: when a timeout happens, alert the RoutingTable so we mark this node flaky
         return future
 
+    @must_be_running
     async def ping(self, remote):
-        if not self.transport:
-            raise Exception('the server is not running yet!')
         pingmsg = create_ping(self.node)
         future = self.send(pingmsg, remote)
         # TODO: timeout if this takes too long?
         # TODO: check that we were given back a pong?
         await future
 
+    @must_be_running
     async def node_lookup(self, targetnodeid: core.ID) -> typing.List[core.Node]:
         return await self._lookup(targetnodeid, looking_for_value=False)
 
+    @must_be_running
     async def value_lookup(self, targetnodeid: core.ID):
         try:
             await self._lookup(targetnodeid, looking_for_value=True)
         except ValueFound as ex:
             return ex.value
 
+    @must_be_running
     async def _lookup(self, targetnodeid: core.ID, looking_for_value: bool) -> typing.List[core.Node]:
         alpha = 3
-        if not self.transport:
-            raise Exception('the server is not running yet!')
         # start with the alpha nodes closest to me
         to_query = self.table.closest_to_me(alpha)
 
@@ -360,20 +368,18 @@ class Server:
           from the k-closest nodes still in consideration
         '''
 
+    @must_be_running
     async def find_node(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_NODE to remote and return the result'
-        if not self.transport:
-            raise Exception('the server is not running yet!')
         message = create_find_node(self.node, targetnodeid)
         future = self.send(message, remote)
         result = await future
         # TODO: throw an error if we weren't given a FindNodeResponse
         return parse_find_node_response(result)
 
+    @must_be_running
     async def find_value(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_VALUE to remote and return the result'
-        if not self.transport:
-            raise Exception('the server is not running yet!')
         message = create_find_value(self.node, targetnodeid)
         future = self.send(message, remote)
         result = await future
@@ -381,9 +387,8 @@ class Server:
             raise ValueFound(result.foundValue.value)
         return parse_find_node_response(result)
 
+    @must_be_running
     async def store(self, remote: core.Node, key: core.ID, value: bytes):
-        if not self.transport:
-            raise Exception('the server is not running yet!')
         # todo: write a test for this function
         message = create_store(self.node, key, value)
         future = self.send(message, remote)
