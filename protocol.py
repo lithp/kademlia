@@ -38,15 +38,6 @@ class ValueFound(Exception):
     def __init__(self, value: bytes):
         self.value = value
 
-def parse_find_node_response(response: Message) -> typing.List[core.Node]:
-    return [
-        core.Node(
-            addr=neighbor.ip,
-            port=neighbor.port,
-            nodeid=read_nodeid(neighbor.nodeid)
-        ) for neighbor in response.findNodeResponse.neighbors
-    ]
-
 class Protocol(asyncio.DatagramProtocol):
 
     def __init__(self, table: core.RoutingTable, node: core.Node, rpc_hook):
@@ -65,14 +56,16 @@ class Protocol(asyncio.DatagramProtocol):
         # The node claims to have the address {message.sender}, but {addr} has been proven
         # to work and potentially even punched through a NAT, it seems the better choice!
         try:
-            message = Message()
-            message.ParseFromString(data)
+            protobuf = Message()
+            protobuf.ParseFromString(data)
         except google.protobuf.message.DecodeError:
             print(f"received malformed data from {addr}")
             print(data)
             return
 
-        remote = read_node(message.sender)
+        message = messages.Message.parse_protobuf(protobuf)
+
+        remote = message.sender
         if remote.nodeid == self.node.nodeid:
             assert False, 'received a message from ourselves'
         try:
@@ -81,7 +74,7 @@ class Protocol(asyncio.DatagramProtocol):
             # TODO: do something here, we should try to evict a node!
             pass
 
-        if isresponse(message):
+        if isinstance(message, messages.Response):
             nonce = message.nonce
             if nonce not in self.outstanding_requests:
                 print(f"received a message but the nonce is not recognized")
@@ -166,19 +159,19 @@ class Server:
         return future
 
     def received_rpc(self, message):
-        if message.HasField('findNode'):
+        if isinstance(message, messages.FindNode):
             self.find_node_received(message)
             return
 
-        if message.HasField('ping'):
+        if isinstance(message, messages.Ping):
             self.ping_received(message)
             return
 
-        if message.HasField('store'):
+        if isinstance(message, messages.Store):
             self.store_received(message)
             return
 
-        if message.HasField('findValue'):
+        if isinstance(message, messages.FindValue):
             self.find_value_received(message)
             return
 
@@ -189,7 +182,7 @@ class Server:
     def _respond(self, request, response: messages.Message):
         finalized = response.finalize(self.node)
         serialized = finalized.SerializeToString()
-        dest = (request.sender.ip, request.sender.port)
+        dest = (request.sender.addr, request.sender.port)
         self.transport.sendto(serialized, dest)
 
     def ping_received(self, message):
@@ -200,14 +193,14 @@ class Server:
         self._respond(message, ping)
 
     def store_received(self, message):
-        self.storage[read_nodeid(message.store.key).value] = message.store.value
+        self.storage[message.key.value] = message.value
 
         response = messages.StoreResponse(message.nonce)
         self._respond(message, response)
 
     def find_node_received(self, request):
         # look in the table and return the nodes closest to the requested node
-        targetnodeid: core.ID = read_nodeid(request.findNode.key)
+        targetnodeid: core.ID = request.key
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
         response = messages.FindNodeResponse(request.nonce, closest)
@@ -215,7 +208,7 @@ class Server:
 
     def find_value_received(self, request):
         # if we have the value locally reply with a FoundValue
-        targetkey: core.ID = read_nodeid(request.findValue.key)
+        targetkey: core.ID = request.key
         if targetkey.value in self.storage:
             response = messages.FoundValue(
                 request.nonce, targetkey, self.storage[targetkey.value]
@@ -243,7 +236,7 @@ class Server:
         future = self.send(message, remote)
         result = await future
         # TODO: throw an error if we weren't given a FindNodeResponse
-        return parse_find_node_response(result)
+        return result
 
     @must_be_running
     async def find_value(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
@@ -251,9 +244,9 @@ class Server:
         message = messages.FindValue(targetnodeid)
         future = self.send(message, remote)
         result = await future
-        if result.HasField('foundValue'):
-            raise ValueFound(result.foundValue.value)
-        return parse_find_node_response(result)
+        if isinstance(result, messages.FoundValue):
+            raise ValueFound(result.value)
+        return result
 
     @must_be_running
     async def store(self, remote: core.Node, key: core.ID, value: bytes):
@@ -308,7 +301,7 @@ class Server:
             results = await asyncio.gather(*coros)  # TODO: set some kind of timeout!
             if looking_for_value:
                 pass
-            new_nodes = (node for result in results for node in result)
+            new_nodes = (node for result in results for node in result.nodes)
             new_nodes = (node for node in new_nodes if node.nodeid != self.nodeid)
             seen_nodes = sorted(
                 itertools.chain(seen_nodes, new_nodes),

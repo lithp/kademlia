@@ -310,14 +310,6 @@ async def test_responds_to_find_value_when_has_value():
     assert response.foundValue.key == protocol.write_nodeid(ID(0b100))
     assert response.foundValue.value == b'abc'
 
-def test_parse_find_node_response():
-    nodes = [core.Node(addr='localhost', port=i, nodeid=ID(i)) for i in range(5)]
-
-    find_node_response = messages.FindNodeResponse(b'', nodes[0:]).finalize(nodes[0])
-    parsed_nodes = protocol.parse_find_node_response(find_node_response)
-
-    assert parsed_nodes == nodes[0:]
-
 @pytest.mark.asyncio
 async def test_sending_find_node_response():
     # start our server
@@ -343,7 +335,7 @@ async def test_sending_find_node_response():
 
     assert len(mockserver.messages) == 1  # the mock server received a message
     assert mockserver.messages[0].HasField('findNode')  # Server sent a FindNode message
-    assert result == nodes  # Server parsed the nodes we gave it
+    assert result.nodes == nodes  # Server parsed the nodes we gave it
 
 
 @pytest.mark.asyncio

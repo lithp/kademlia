@@ -10,10 +10,7 @@ import protobuf.rpc_pb2 as proto
 class Message:
     message_types: typing.ClassVar = dict()
     nonce: bytes = dataclasses.field(init=False, default_factory=core.newnonce)
-    _message: proto.Message = dataclasses.field(init=False, repr=False)
-
-    def __post_init__(self):
-        self._message = proto.Message()
+    sender: core.Node = dataclasses.field(init=False)
 
     def __init_subclass__(cls, **kwargs):
         if hasattr(cls, 'field'):
@@ -21,7 +18,7 @@ class Message:
         super().__init_subclass__(**kwargs)
 
     def finalize(self, node: core.Node):
-        message = self._message
+        message = proto.Message()
         message.nonce = self.nonce
         message.sender.ip = node.addr
         message.sender.port = node.port
@@ -32,14 +29,29 @@ class Message:
 
         return message
 
+    @staticmethod
+    def _parse_sender(sender):
+        return core.Node(
+            addr=sender.ip,
+            port=sender.port,
+            nodeid=core.ID.from_bytes(sender.nodeid)
+        )
+
     @classmethod
     def parse_protobuf(cls, protobuf: proto.Message):
         for fieldName, fieldClass in cls.message_types.items():
             if protobuf.HasField(fieldName):
-                result = fieldClass.from_proto(protobuf)
+                result = fieldClass._from_proto(protobuf)
                 result.nonce = protobuf.nonce
+                result.sender = cls._parse_sender(protobuf.sender)
                 return result
         raise ValueError(f'did not recognize {proto}')
+
+# if there were any more of these it would barely be worth metaprogramming
+
+@dataclasses.dataclass
+class Response(Message):
+    nonce: bytes
 
 @dataclasses.dataclass
 class FindNode(Message):
@@ -50,12 +62,9 @@ class FindNode(Message):
         stub.findNode.key = self.key.to_bytes()
 
     @classmethod
-    def from_proto(cls, proto: proto.Message):
+    def _from_proto(cls, proto: proto.Message):
         return cls(key=core.ID.from_bytes(proto.findNode.key))
 
-@dataclasses.dataclass
-class Response(Message):
-    nonce: bytes
 
 @dataclasses.dataclass
 class FindNodeResponse(Response):
@@ -70,7 +79,7 @@ class FindNodeResponse(Response):
             neighbor.nodeid = node.nodeid.to_bytes()
 
     @classmethod
-    def from_proto(cls, proto: proto.Message):
+    def _from_proto(cls, proto: proto.Message):
         return cls(proto.nonce, [
             core.Node(
                 addr=neighbor.ip,
@@ -85,17 +94,29 @@ class Ping(Message):
     def _to_proto(self, stub):
         stub.ping.SetInParent()
 
+    @classmethod
+    def _from_proto(cls, proto: proto.Message):
+        return cls()
+
 class Pong(Response):
     field = 'pong'
 
     def _to_proto(self, stub):
         stub.pong.SetInParent()
 
+    @classmethod
+    def _from_proto(cls, proto: proto.Message):
+        return cls(proto.nonce)
+
 class StoreResponse(Response):
     field = 'storeResponse'
 
     def _to_proto(self, stub):
         stub.storeResponse.SetInParent()
+
+    @classmethod
+    def _from_proto(cls, proto: proto.Message):
+        return cls(proto.nonce)
 
 @dataclasses.dataclass
 class Store(Message):
@@ -107,6 +128,10 @@ class Store(Message):
         stub.store.key = self.key.to_bytes()
         stub.store.value = self.value
 
+    @classmethod
+    def _from_proto(cls, proto: proto.Message):
+        return cls(core.ID.from_bytes(proto.store.key), proto.store.value)
+
 @dataclasses.dataclass
 class FoundValue(Response):
     field = 'foundValue'
@@ -117,6 +142,14 @@ class FoundValue(Response):
         stub.foundValue.key = self.key.to_bytes()
         stub.foundValue.value = self.value
 
+    @classmethod
+    def _from_proto(cls, proto: proto.Message):
+        return cls(
+            proto.nonce,
+            core.ID.from_bytes(proto.foundValue.key),
+            proto.foundValue.value
+        )
+
 @dataclasses.dataclass
 class FindValue(Message):
     field = 'findValue'
@@ -124,3 +157,7 @@ class FindValue(Message):
 
     def _to_proto(self, stub):
         stub.findValue.key = self.key.to_bytes()
+
+    @classmethod
+    def _from_proto(cls, proto: proto.Message):
+        return cls(core.ID.from_bytes(proto.findValue.key))
