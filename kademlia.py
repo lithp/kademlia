@@ -63,4 +63,3 @@ class Node():
     async def find_value(self, key: int):
         "Perform a node lookup but send FIND_VALUE messages, and stop once it's found"
         return await self.server.value_lookup(key)
-

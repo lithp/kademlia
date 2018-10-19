@@ -7,6 +7,27 @@ import protocol
 
 
 @pytest.mark.asyncio
+async def test_full_nodes():
+    first = kademlia.Node('localhost', 9000)
+    second = kademlia.Node('localhost', 9001)
+    third = kademlia.Node('localhost', 9002)
+
+    # bind the servers to their ports
+    await first.listen()
+    await second.listen()
+    await third.listen()
+
+    # them them about each other
+    await first.bootstrap('localhost', 9001)
+    await second.bootstrap('localhost', 9002)
+
+    # now that they're all talking to each other:
+    await first.store_value(0b100, b'hello')
+    value = await third.find_value(0b100)
+    assert value == b'hello'
+
+
+@pytest.mark.asyncio
 async def test_bootstrapping():
     node = kademlia.Node('localhost', 3000)
     await node.listen()
