@@ -1,6 +1,7 @@
 from __future__ import annotations  # allow forward references (PEP 563)
 
 import collections
+import dataclasses
 import datetime
 import functools
 import ipaddress
@@ -10,31 +11,28 @@ import typing
 
 Address = typing.Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 
-def new_node_id() -> int:
+def _new_node_id() -> int:
     'a random nodeid from [0, 2^160-1]'
     nodeid = random.getrandbits(160)
     assert nodeid.bit_length() <= 160
     return nodeid
 
-def nodeid_as_bitstring(nodeid: int) -> str:
-    return f"{nodeid:0160b}"
-
-def node_distance(left: int, right: int) -> int:
-    return left ^ right
-
+@dataclasses.dataclass(order=True, frozen=True)
 class ID:
-    def __init__(self, value: int = None):
-        if value is None:
-            value = new_node_id()
-        self.value = value
+    value: int = dataclasses.field(default_factory=_new_node_id)
+
     @classmethod
     def from_bytes(cls, as_bytes: bytes):
         as_int = int.from_bytes(as_bytes, byteorder='big')
         assert(as_int.bit_length() <= 160)
         return cls(as_int)
+
+    def as_bitstring(self) -> str:
+        return f"{self.value:0160b}"
+
     def to_bytes(self) -> bytes:
-        return self.valueto_bytes(20, byteorder='big')
-    def distance(self, other) -> int:
+        return self.value.to_bytes(20, byteorder='big')
+    def distance(self, other: ID) -> int:
         return self.value ^ other.value
 
 
@@ -57,7 +55,7 @@ def random_key_in_bucket(myid: ID, bucket_index: int) -> ID:
 class Node(typing.NamedTuple):
     addr: Address
     port: int
-    nodeid: int
+    nodeid: ID
 
 class RoutingEntry(typing.NamedTuple):
     node: Node
@@ -75,31 +73,31 @@ class NoRoomInBucket(Exception):
         self.entry = entry
 
 class RoutingTable:
-    Bucket = typing.MutableMapping[int, RoutingEntry]  # Actually, an OrderedDict
+    Bucket = typing.MutableMapping[ID, RoutingEntry]  # Actually, an OrderedDict
 
-    def __init__(self, k: int, mynodeid: int):
+    def __init__(self, k: int, mynodeid: ID):
         self.k = k
         self.nodeid = mynodeid
 
         Buckets = typing.List[self.Bucket]
         self.buckets: Buckets = collections.defaultdict(collections.OrderedDict)
 
-    def _bucket_index_for(self, nodeid: int) -> int:
+    def _bucket_index_for(self, nodeid: ID) -> int:
         assert self.nodeid != nodeid
-        assert nodeid >= 0
-        assert nodeid <= (2**160 - 1)
+        assert nodeid.value >= 0
+        assert nodeid.value <= (2**160 - 1)
 
-        distance = node_distance(self.nodeid, nodeid)
+        distance = self.nodeid.distance(nodeid)
         index = distance.bit_length() - 1
 
         assert index >= 0 and index < 160, index
         return index
 
-    def _bucket_for(self, nodeid: int) -> RoutingTable.Bucket:
+    def _bucket_for(self, nodeid: ID) -> RoutingTable.Bucket:
         bucket_index = self._bucket_index_for(nodeid)
         return self.buckets[bucket_index]
     
-    def last_seen_for(self, nodeid: int) -> datetime.datetime:
+    def last_seen_for(self, nodeid: ID) -> datetime.datetime:
         bucket_index = self._bucket_index_for(nodeid)
         bucket = self.buckets[bucket_index]
         entry = bucket[nodeid]  # may raise KeyError if nodeid is not known
@@ -133,7 +131,7 @@ class RoutingTable:
                 break
             width += 1
 
-    def closest(self, targetnodeid: int, n:int = None) -> typing.List[Node]:
+    def closest(self, targetnodeid: ID, n:int = None) -> typing.List[Node]:
         'Returns the k nodes we know of which are closest to key'
         if targetnodeid == self.nodeid:
             # _bucket_index_for will fail if we give it ourselves, we're not in any bucket
@@ -155,7 +153,7 @@ class RoutingTable:
         buckets_to_check = ([i] for i in range(160))
         return self._closest_nodes(self.nodeid, n, buckets_to_check)
 
-    def _closest_nodes(self, targetnodeid: int, n: int, bucket_iterator):
+    def _closest_nodes(self, targetnodeid: ID, n: int, bucket_iterator):
         # TODO: this was a fun experiment but it's slower and harder to read than the
         #       imperative code, you should probably switch it back
         bucket_iterator: typing.Iterator[typing.List[int]]
@@ -175,7 +173,7 @@ class RoutingTable:
             for bucket_index_list in bucket_iterator
         )
 
-        dist_from_target = lambda node: node_distance(targetnodeid, node.nodeid)
+        dist_from_target = lambda node: targetnodeid.distance(node.nodeid)
         sort_nodes = lambda nodes: sorted(nodes, key=dist_from_target)
 
         sorted_buckets = (sort_nodes(bucket) for bucket in merged_buckets)
@@ -208,7 +206,7 @@ class RoutingTable:
         nodeid, routing_entry = self._first_element_of_ordered_dict(bucket)
         raise NoRoomInBucket(routing_entry)
 
-    def evict_node(self, nodeid: int):
+    def evict_node(self, nodeid: ID):
         'Removes this node from the routing table'
         bucket: collections.OrderedDict = self._bucket_for(nodeid)
         del bucket[nodeid]

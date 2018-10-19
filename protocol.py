@@ -22,13 +22,11 @@ def isresponse(message):
     responses = ['pong', 'storeResponse', 'findNodeResponse', 'foundValue']
     return any(message.HasField(response) for response in responses)
 
-def read_nodeid(asbytes: bytes) -> int:
-    asint = int.from_bytes(asbytes, byteorder='big')
-    assert(asint.bit_length() <= 160)
-    return asint
+def read_nodeid(asbytes: bytes) -> core.ID:
+    return core.ID.from_bytes(asbytes)
 
-def write_nodeid(asint: int) -> bytes:
-    return asint.to_bytes(20, byteorder='big')
+def write_nodeid(nodeid: core.ID) -> bytes:
+    return nodeid.to_bytes()
 
 def read_node(node: NodeProto) -> core.Node:
     return core.Node(
@@ -75,7 +73,7 @@ def create_find_node_response(
         neighbor.nodeid = write_nodeid(node.nodeid)
     return message
 
-def create_find_node(node: core.Node, targetnodeid: int) -> Message:
+def create_find_node(node: core.Node, targetnodeid: core.ID) -> Message:
     message = create_message(node)
     message.findNode.key = write_nodeid(targetnodeid)
     return message
@@ -95,13 +93,13 @@ def create_store_response(node: core.Node, nonce: bytes) -> Message:
     message.storeResponse.SetInParent()
     return message
 
-def create_store(node: core.Node, key: int, value: bytes) -> Message:
+def create_store(node: core.Node, key: core.ID, value: bytes) -> Message:
     message = create_message(node)
     message.store.key = write_nodeid(key)
     message.store.value = value
     return message
 
-def create_found_value(node: core.Node, nonce: bytes, key: int, value: bytes) -> Message:
+def create_found_value(node: core.Node, nonce: bytes, key: core.ID, value: bytes) -> Message:
     message = create_response(node, nonce)
     message.foundValue.key = write_nodeid(key)
     message.foundValue.value = value
@@ -111,7 +109,7 @@ class ValueFound(Exception):
     def __init__(self, value: bytes):
         self.value = value
 
-def create_find_value(node: core.Node, key: int) -> Message:
+def create_find_value(node: core.Node, key: core.ID) -> Message:
     message = create_message(node)
     message.findValue.key = write_nodeid(key)
     return message
@@ -133,7 +131,7 @@ class Protocol(asyncio.DatagramProtocol):
         self.node = node
 
         # TODO: figure out a better place to put this
-        self.storage: typing.Dict[bytes, bytes] = dict()
+        self.storage: typing.Dict[int, bytes] = dict()
         self.build = MessageBuilder(self.node)
 
     def connection_made(self, transport):
@@ -210,14 +208,14 @@ class Protocol(asyncio.DatagramProtocol):
         self._respond(message, ping)
 
     def store_received(self, message):
-        self.storage[read_nodeid(message.store.key)] = message.store.value
+        self.storage[read_nodeid(message.store.key).value] = message.store.value
 
         response = create_store_response(self.node, message.nonce)
         self._respond(message, response)
 
     def find_node_received(self, request):
         # look in the table and return the nodes closest to the requested node
-        targetnodeid: int = read_nodeid(request.findNode.key)
+        targetnodeid: core.ID = read_nodeid(request.findNode.key)
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
         response = self.build.find_node_response(request.nonce, closest)
@@ -225,10 +223,10 @@ class Protocol(asyncio.DatagramProtocol):
 
     def find_value_received(self, request):
         # if we have the value locally reply with a FoundValue
-        targetkey = read_nodeid(request.findValue.key)
-        if targetkey in self.storage:
+        targetkey: core.ID = read_nodeid(request.findValue.key)
+        if targetkey.value in self.storage:
             response = create_found_value(
-                self.node, request.nonce, targetkey, self.storage[targetkey]
+                self.node, request.nonce, targetkey, self.storage[targetkey.value]
             )
             self._respond(request, response)
             return
@@ -242,11 +240,11 @@ class Server:
         self.transport = None
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
 
-        self.table = core.RoutingTable(k, mynodeid.value)
+        self.table = core.RoutingTable(k, mynodeid)
 
         self.k = k
         self.node = None
-        self.nodeid = mynodeid.value
+        self.nodeid = mynodeid
 
     async def listen(self, port):
         loop = asyncio.get_running_loop()
@@ -302,15 +300,15 @@ class Server:
         await future
 
     async def node_lookup(self, targetnodeid: core.ID) -> typing.List[core.Node]:
-        return await self._lookup(targetnodeid.value, looking_for_value=False)
+        return await self._lookup(targetnodeid, looking_for_value=False)
 
-    async def value_lookup(self, targetnodeid: int):
+    async def value_lookup(self, targetnodeid: core.ID):
         try:
             await self._lookup(targetnodeid, looking_for_value=True)
         except ValueFound as ex:
             return ex.value
 
-    async def _lookup(self, targetnodeid: int, looking_for_value: bool) -> typing.List[core.Node]:
+    async def _lookup(self, targetnodeid: core.ID, looking_for_value: bool) -> typing.List[core.Node]:
         alpha = 3
         if not self.transport:
             raise Exception('the server is not running yet!')
@@ -335,7 +333,7 @@ class Server:
             new_nodes = (node for node in new_nodes if node.nodeid != self.nodeid)
             seen_nodes = sorted(
                 itertools.chain(seen_nodes, new_nodes),
-                key=lambda node: core.node_distance(node.nodeid, targetnodeid)
+                key=lambda node: node.nodeid.distance(targetnodeid)
             )[:self.k]
 
             # for the next round, send queries to alpha of the closest unqueried nodes
@@ -362,7 +360,7 @@ class Server:
           from the k-closest nodes still in consideration
         '''
 
-    async def find_node(self, remote: core.Node, targetnodeid: int) -> typing.List[core.Node]:
+    async def find_node(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_NODE to remote and return the result'
         if not self.transport:
             raise Exception('the server is not running yet!')
@@ -372,7 +370,7 @@ class Server:
         # TODO: throw an error if we weren't given a FindNodeResponse
         return parse_find_node_response(result)
 
-    async def find_value(self, remote: core.Node, targetnodeid: int) -> typing.List[core.Node]:
+    async def find_value(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_VALUE to remote and return the result'
         if not self.transport:
             raise Exception('the server is not running yet!')
@@ -383,7 +381,7 @@ class Server:
             raise ValueFound(result.foundValue.value)
         return parse_find_node_response(result)
 
-    async def store(self, remote: core.Node, key: int, value: bytes):
+    async def store(self, remote: core.Node, key: core.ID, value: bytes):
         if not self.transport:
             raise Exception('the server is not running yet!')
         # todo: write a test for this function

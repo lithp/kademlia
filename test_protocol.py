@@ -20,9 +20,9 @@ def test_read_write_nodeid():
     involve = lambda i: protocol.read_nodeid(protocol.write_nodeid(i))
 
     for i in range(100):
-        assert i == involve(i)
+        assert ID(i) == involve(ID(i))
 
-    nodeid = 2**160 - 1
+    nodeid = ID(2**160 - 1)
     assert protocol.write_nodeid(nodeid) == b'\xff'*20
     assert nodeid == involve(nodeid)
 
@@ -74,8 +74,8 @@ async def test_nonce_matching():
     'When you send a PING and get back a PONG with the same nonce the future is triggered'
     mockserver = await startmockserver(3000)
 
-    local_node = core.Node(addr='localhost', port=3000, nodeid=100)
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=110)
+    local_node = core.Node(addr='localhost', port=3000, nodeid=ID(100))
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(110))
 
     server = protocol.Server(k=2, mynodeid=ID(100))
     await server.listen(3000)
@@ -110,7 +110,7 @@ async def test_incoming_messages_notify_routing_table():
     server = protocol.Server(k=2, mynodeid=ID(0b1000))
     await server.listen(3000)
 
-    remoteid = 0b1001
+    remoteid = ID(0b1001)
 
     # 2. Send it a PONG
     remote_node = core.Node(addr='localhost', port=3001, nodeid=remoteid)
@@ -134,8 +134,8 @@ async def test_server_send():
     server = protocol.Server(k=2, mynodeid=ID(0b1000))
     await server.listen(3000)
 
-    local_node = core.Node(addr='localhost', port=3000, nodeid=0b1000)
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
+    local_node = core.Node(addr='localhost', port=3000, nodeid=ID(0b1000))
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
 
     # spin up a server
     assert len(mockserver.messages) == 0
@@ -160,7 +160,7 @@ async def test_server_ping():
     server = protocol.Server(k=2, mynodeid=ID(0b1000))
     await server.listen(3000)
 
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
 
     assert len(mockserver.messages) == 0
 
@@ -189,7 +189,7 @@ async def test_response_to_ping():
 
     future = mockserver.next_message_future()
 
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
     ping = protocol.create_ping(remote_node)
     mockserver.send(ping)
 
@@ -204,7 +204,7 @@ async def test_response_to_ping():
     assert pong.nonce == ping.nonce
     assert pong.sender.ip == 'localhost'
     assert pong.sender.port == 3000
-    assert pong.sender.nodeid == protocol.write_nodeid(0b1000)
+    assert pong.sender.nodeid == protocol.write_nodeid(ID(0b1000))
 
 @pytest.mark.asyncio
 async def test_responds_to_find_node():
@@ -215,8 +215,8 @@ async def test_responds_to_find_node():
     await server.listen(3000)
 
     # Ask it for some random node
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
-    request = protocol.create_find_node(remote_node, targetnodeid=0b10000)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
+    request = protocol.create_find_node(remote_node, targetnodeid=ID(0b10000))
     mockserver.send(request)
 
     # We should get a response back!
@@ -242,9 +242,9 @@ async def test_responds_to_store():
     await server.listen(3000)
 
     # Ask it for some random node
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
 
-    request = protocol.create_store(remote_node, key=0b100, value=b'abc')
+    request = protocol.create_store(remote_node, key=ID(0b100), value=b'abc')
     mockserver.send(request)
 
     # We should get a response back!
@@ -270,8 +270,8 @@ async def test_responds_to_find_value_when_no_value():
     server = protocol.Server(k=2, mynodeid=ID(0b1000))
     await server.listen(3000)
 
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
-    request = protocol.create_find_value(remote_node, key=0b100)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
+    request = protocol.create_find_value(remote_node, key=ID(0b100))
     mockserver.send(request)
 
     # We should get a response back!
@@ -292,16 +292,16 @@ async def test_responds_to_find_value_when_has_value():
     server = protocol.Server(k=2, mynodeid=ID(0b1000))
     await server.listen(3000)
 
-    remote_node = core.Node(addr='localhost', port=3001, nodeid=0b1001)
+    remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
 
-    request = protocol.create_store(remote_node, key=0b100, value=b'abc')
+    request = protocol.create_store(remote_node, key=ID(0b100), value=b'abc')
     mockserver.send(request)
 
     assert len(mockserver.messages) == 0
     await asyncio.wait_for(mockserver.next_message_future(), timeout=0.1)
     assert len(mockserver.messages) == 1
 
-    request = protocol.create_find_value(remote_node, key=0b100)
+    request = protocol.create_find_value(remote_node, key=ID(0b100))
     mockserver.send(request)
 
     await asyncio.wait_for(mockserver.next_message_future(), timeout=0.1)
@@ -311,11 +311,11 @@ async def test_responds_to_find_value_when_has_value():
     response = mockserver.messages[1]
     assert response.nonce == request.nonce
     assert response.HasField('foundValue')
-    assert response.foundValue.key == protocol.write_nodeid(0b100)
+    assert response.foundValue.key == protocol.write_nodeid(ID(0b100))
     assert response.foundValue.value == b'abc'
 
 def test_parse_find_node_response():
-    nodes = [core.Node(addr='localhost', port=i, nodeid=i) for i in range(5)]
+    nodes = [core.Node(addr='localhost', port=i, nodeid=ID(i)) for i in range(5)]
     build = protocol.MessageBuilder(nodes[0])
 
     find_node_response = build.find_node_response(b'', nodes[0:])
@@ -329,8 +329,8 @@ async def test_sending_find_node_response():
     server = protocol.Server(k=2, mynodeid=ID(0b1000))
     await server.listen(3000)
 
-    remote = core.Node(addr='localhost', port=3001, nodeid=0b1001)
-    nodes = [core.Node(addr='localhost', port=i, nodeid=i) for i in range(5)]
+    remote = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
+    nodes = [core.Node(addr='localhost', port=i, nodeid=ID(i)) for i in range(5)]
 
     mockserver = await startmockserver(3000)
 
@@ -345,7 +345,7 @@ async def test_sending_find_node_response():
     future.add_done_callback(respond)
 
     # send FIND_NODE and see that we correctly parse the response!
-    targetnodeid = 0b1010
+    targetnodeid = ID(0b1010)
     result = await asyncio.wait_for(server.find_node(remote, targetnodeid), timeout=0.1)
 
     assert len(mockserver.messages) == 1  # the mock server received a message
@@ -388,9 +388,9 @@ async def test_node_lookup_finds_peer_through_peers():
     second_hop = protocol.Server(k=2, mynodeid=ID(0b1010))
     await second_hop.listen(3002)
 
-    targetid = 0b1011
+    targetid = ID(0b1011)
 
-    final = protocol.Server(k=2, mynodeid=ID(targetid))
+    final = protocol.Server(k=2, mynodeid=targetid)
     await final.listen(3003)
 
     server.table.node_seen(first_hop.node)
@@ -403,7 +403,7 @@ async def test_node_lookup_finds_peer_through_peers():
     with pytest.raises(KeyError):
         server.table.last_seen_for(second_hop.node.nodeid)
 
-    await server.node_lookup(ID(targetid))
+    await server.node_lookup(targetid)
 
     assert server.table.last_seen_for(second_hop.node.nodeid) is not None
     assert server.table.last_seen_for(targetid) is not None

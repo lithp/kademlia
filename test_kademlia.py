@@ -14,17 +14,17 @@ async def test_full_nodes():
     third = kademlia.Node('localhost', 9002)
 
     # bind the servers to their ports
-    await first.listen()
+    await asyncio.wait_for(first.listen(), timeout=0.1)
     await second.listen()
     await third.listen()
 
     # them them about each other
-    await first.bootstrap('localhost', 9001)
+    await asyncio.wait_for(first.bootstrap('localhost', 9001), timeout=0.1)
     await second.bootstrap('localhost', 9002)
 
     # now that they're all talking to each other:
-    await first.store_value(0b100, b'hello')
-    value = await third.find_value(0b100)
+    await asyncio.wait_for(first.store_value(ID(0b100), b'hello'), timeout=0.1)
+    value = await asyncio.wait_for(third.find_value(ID(0b100)), timeout=0.1)
     assert value == b'hello'
 
 
@@ -63,7 +63,7 @@ async def test_store():
     first.table.node_seen(second.node)
     second.table.node_seen(third.node)
 
-    await asyncio.wait_for(node.store_value(key=0b1010, value=b'hello'), timeout=0.1)
+    await asyncio.wait_for(node.store_value(key=ID(0b1010), value=b'hello'), timeout=0.1)
 
     storage = lambda server: server.protocol.storage
 
@@ -92,5 +92,5 @@ async def test_value_lookup():
 
     third.protocol.storage[0b100] = b'hello'
 
-    result = await asyncio.wait_for(node.find_value(0b100), timeout=0.1)
+    result = await asyncio.wait_for(node.find_value(ID(0b100)), timeout=0.1)
     assert result == b'hello'

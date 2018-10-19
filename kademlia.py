@@ -12,7 +12,7 @@ class Node():
         self.port = port
         self.nodeid = core.ID()
 
-        self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid.value)
+        self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid)
         self.server = protocol.Server(k, self.nodeid)
 
     async def listen(self):
@@ -35,7 +35,7 @@ class Node():
         # TODO: is this address type correct?
         #       No, it certainly is not
         # TODO: that we have to build a fake node here is likely a bad smell
-        remote = core.Node(addr=address, port=port, nodeid=b'garbage')
+        remote = core.Node(addr=address, port=port, nodeid=core.ID(0b11111111))
         await self.server.ping(remote)
 
         # perform a node lookup for your own ID
@@ -49,9 +49,9 @@ class Node():
         for index in range(closest, 160):
             await self._refresh(index)
 
-    async def store_value(self, key: int, value: bytes):
+    async def store_value(self, key: core.ID, value: bytes):
         'Find the k closest nodes and send a STORE RPC to all of them'
-        closest_nodes = await self.server.node_lookup(core.ID(key))
+        closest_nodes = await self.server.node_lookup(key)
 
         # todo: timeouts
         coros = [
@@ -60,6 +60,6 @@ class Node():
         ]
         await asyncio.gather(*coros)
 
-    async def find_value(self, key: int):
+    async def find_value(self, key: core.ID):
         "Perform a node lookup but send FIND_VALUE messages, and stop once it's found"
         return await self.server.value_lookup(key)
