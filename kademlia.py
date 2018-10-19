@@ -10,10 +10,10 @@ class Node():
         self.k = k  # the size of each k-bucket, use 1 if nodes will never fail
         self.addr = addr
         self.port = port
-        self.nodeid = core.new_node_id()
+        self.nodeid = core.ID()
 
-        self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid)
-        self.server = protocol.Server(k, self.nodeid)
+        self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid.value)
+        self.server = protocol.Server(k, self.nodeid.value)
 
     async def listen(self):
         await self.server.listen(self.port)
@@ -22,7 +22,7 @@ class Node():
         '''
         Runs when we haven't heard from any of the nodes in this bucket for over an hour
         '''
-        nodeid = core.random_key_in_bucket(self.nodeid, bucket)
+        nodeid = core.random_key_in_bucket(self.nodeid.value, bucket)
         await self.server.node_lookup(nodeid)
 
     async def bootstrap(self, address: core.Address, port:int):
@@ -39,7 +39,7 @@ class Node():
         await self.server.ping(remote)
 
         # perform a node lookup for your own ID
-        await self.server.node_lookup(self.nodeid)
+        await self.server.node_lookup(self.nodeid.value)
 
         # refresh all buckets further away than our closest neighbor
 

@@ -22,6 +22,22 @@ def nodeid_as_bitstring(nodeid: int) -> str:
 def node_distance(left: int, right: int) -> int:
     return left ^ right
 
+class ID:
+    def __init__(self, value: int = None):
+        if value is None:
+            value = new_node_id()
+        self.value = value
+    @classmethod
+    def from_bytes(cls, as_bytes: bytes):
+        as_int = int.from_bytes(as_bytes, byteorder='big')
+        assert(as_int.bit_length() <= 160)
+        return cls(as_int)
+    def to_bytes(self) -> bytes:
+        return self.valueto_bytes(20, byteorder='big')
+    def distance(self, other) -> int:
+        return self.value ^ other.value
+
+
 def bucket_ranges(bucket_index: int) -> typing.Tuple[int, int]:
     'Returns the min and max value for a bucket'
     assert bucket_index >= 0
