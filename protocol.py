@@ -126,14 +126,13 @@ def parse_find_node_response(response: Message) -> typing.List[core.Node]:
 
 class Protocol(asyncio.DatagramProtocol):
 
-    def __init__(self, table: core.RoutingTable, node: core.Node):
+    def __init__(self, table: core.RoutingTable, node: core.Node, rpc_hook):
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
         self.table = table
         self.node = node
 
-        # TODO: figure out a better place to put this
-        self.storage: typing.Dict[int, bytes] = dict()
         self.build = MessageBuilder(self.node)
+        self.rpc_hook = rpc_hook
 
     def connection_made(self, transport):
         self.transport = transport
@@ -170,70 +169,13 @@ class Protocol(asyncio.DatagramProtocol):
             future.set_result(message)
             return
 
-        if message.HasField('findNode'):
-            self.find_node_received(message)
-            return
-
-        if message.HasField('ping'):
-            self.ping_received(message)
-            return
-
-        if message.HasField('store'):
-            self.store_received(message)
-            return
-
-        if message.HasField('findValue'):
-            self.find_value_received(message)
-            return
-
-        assert False, 'an unexpected message type was received'
+        self.rpc_hook(message)
 
     # Futures
 
     def register_nonce(self, nonce, future):
         assert(nonce not in self.outstanding_requests)
         self.outstanding_requests[nonce] = future
-
-    # Requests
-
-    def _respond(self, request, response):
-        serialized = response.SerializeToString()
-        dest = (request.sender.ip, request.sender.port)
-        self.transport.sendto(serialized, dest)
-
-    def ping_received(self, message):
-        # TODO: turn this into a logging statement
-        print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
-
-        ping = create_pong(self.node, message.nonce)
-        self._respond(message, ping)
-
-    def store_received(self, message):
-        self.storage[read_nodeid(message.store.key).value] = message.store.value
-
-        response = create_store_response(self.node, message.nonce)
-        self._respond(message, response)
-
-    def find_node_received(self, request):
-        # look in the table and return the nodes closest to the requested node
-        targetnodeid: core.ID = read_nodeid(request.findNode.key)
-        closest: typing.List[core.Node] = self.table.closest(targetnodeid)
-
-        response = self.build.find_node_response(request.nonce, closest)
-        self._respond(request, response)
-
-    def find_value_received(self, request):
-        # if we have the value locally reply with a FoundValue
-        targetkey: core.ID = read_nodeid(request.findValue.key)
-        if targetkey.value in self.storage:
-            response = create_found_value(
-                self.node, request.nonce, targetkey, self.storage[targetkey.value]
-            )
-            self._respond(request, response)
-            return
-
-        # otherwise, return the nodes most likely to have the value
-        self.find_node_received(request)
 
 
 class Server:
@@ -242,6 +184,7 @@ class Server:
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
 
         self.table = core.RoutingTable(k, mynodeid)
+        self.storage: typing.Dict[int, bytes] = dict()
 
         self.k = k
         self.node = None
@@ -252,9 +195,11 @@ class Server:
         local_addr = ('localhost', port)
 
         self.node = core.Node(addr='localhost', port=port, nodeid=self.nodeid)
+        self.build = MessageBuilder(self.node)
 
         endpoint = loop.create_datagram_endpoint(
-            lambda: Protocol(self.table, self.node), local_addr = local_addr
+            lambda: Protocol(self.table, self.node, self.received_rpc),
+            local_addr = local_addr
         )
         self.transport, self.protocol = await endpoint
 
@@ -298,6 +243,68 @@ class Server:
         # TODO: when a timeout happens, alert the RoutingTable so we mark this node flaky
         return future
 
+    def received_rpc(self, message):
+        if message.HasField('findNode'):
+            self.find_node_received(message)
+            return
+
+        if message.HasField('ping'):
+            self.ping_received(message)
+            return
+
+        if message.HasField('store'):
+            self.store_received(message)
+            return
+
+        if message.HasField('findValue'):
+            self.find_value_received(message)
+            return
+
+        assert False, 'an unexpected message type was received'
+
+    # Incoming RPCs
+
+    def _respond(self, request, response):
+        serialized = response.SerializeToString()
+        dest = (request.sender.ip, request.sender.port)
+        self.transport.sendto(serialized, dest)
+
+    def ping_received(self, message):
+        # TODO: turn this into a logging statement
+        print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
+
+        ping = create_pong(self.node, message.nonce)
+        self._respond(message, ping)
+
+    def store_received(self, message):
+        self.storage[read_nodeid(message.store.key).value] = message.store.value
+
+        response = create_store_response(self.node, message.nonce)
+        self._respond(message, response)
+
+    def find_node_received(self, request):
+        # look in the table and return the nodes closest to the requested node
+        targetnodeid: core.ID = read_nodeid(request.findNode.key)
+        closest: typing.List[core.Node] = self.table.closest(targetnodeid)
+
+        response = self.build.find_node_response(request.nonce, closest)
+        self._respond(request, response)
+
+    def find_value_received(self, request):
+        # if we have the value locally reply with a FoundValue
+        targetkey: core.ID = read_nodeid(request.findValue.key)
+        if targetkey.value in self.storage:
+            response = create_found_value(
+                self.node, request.nonce, targetkey, self.storage[targetkey.value]
+            )
+            self._respond(request, response)
+            return
+
+        # otherwise, return the nodes most likely to have the value
+        self.find_node_received(request)
+
+    # Outbound RPCs
+
     @must_be_running
     async def ping(self, remote):
         pingmsg = create_ping(self.node)
@@ -305,6 +312,35 @@ class Server:
         # TODO: timeout if this takes too long?
         # TODO: check that we were given back a pong?
         await future
+
+    @must_be_running
+    async def find_node(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
+        'Send a FIND_NODE to remote and return the result'
+        message = create_find_node(self.node, targetnodeid)
+        future = self.send(message, remote)
+        result = await future
+        # TODO: throw an error if we weren't given a FindNodeResponse
+        return parse_find_node_response(result)
+
+    @must_be_running
+    async def find_value(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
+        'Send a FIND_VALUE to remote and return the result'
+        message = create_find_value(self.node, targetnodeid)
+        future = self.send(message, remote)
+        result = await future
+        if result.HasField('foundValue'):
+            raise ValueFound(result.foundValue.value)
+        return parse_find_node_response(result)
+
+    @must_be_running
+    async def store(self, remote: core.Node, key: core.ID, value: bytes):
+        # todo: write a test for this function
+        message = create_store(self.node, key, value)
+        future = self.send(message, remote)
+        result = await future
+        return  # TODO: look at and verify the result
+
+    # Node lookups
 
     @must_be_running
     async def node_lookup(self, targetnodeid: core.ID) -> typing.List[core.Node]:
@@ -319,6 +355,18 @@ class Server:
 
     @must_be_running
     async def _lookup(self, targetnodeid: core.ID, looking_for_value: bool) -> typing.List[core.Node]:
+        '''
+        A way you might be able to parallalize this:
+        1. always have alpha requests in-flight
+        2. keep track of the k closest nodes to your target
+           (add to this list as responses come in)
+        3. don't query any node more than once
+        4. quit when you've queried all of the k-closest nodes you know of
+        - this isn't quite right:
+          you want to hold onto more than k nodes, nodes which never respond are removed
+          from your list (until they do respond) and you continue until you've heard back
+          from the k-closest nodes still in consideration
+        '''
         alpha = 3
         # start with the alpha nodes closest to me
         to_query = self.table.closest_to_me(alpha)
@@ -355,43 +403,3 @@ class Server:
                 break
 
         return seen_nodes
-        '''
-        A way you might be able to parallalize this:
-        1. always have alpha requests in-flight
-        2. keep track of the k closest nodes to your target
-           (add to this list as responses come in)
-        3. don't query any node more than once
-        4. quit when you've queried all of the k-closest nodes you know of
-        - this isn't quite right:
-          you want to hold onto more than k nodes, nodes which never respond are removed
-          from your list (until they do respond) and you continue until you've heard back
-          from the k-closest nodes still in consideration
-        '''
-
-    @must_be_running
-    async def find_node(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
-        'Send a FIND_NODE to remote and return the result'
-        message = create_find_node(self.node, targetnodeid)
-        future = self.send(message, remote)
-        result = await future
-        # TODO: throw an error if we weren't given a FindNodeResponse
-        return parse_find_node_response(result)
-
-    @must_be_running
-    async def find_value(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
-        'Send a FIND_VALUE to remote and return the result'
-        message = create_find_value(self.node, targetnodeid)
-        future = self.send(message, remote)
-        result = await future
-        if result.HasField('foundValue'):
-            raise ValueFound(result.foundValue.value)
-        return parse_find_node_response(result)
-
-    @must_be_running
-    async def store(self, remote: core.Node, key: core.ID, value: bytes):
-        # todo: write a test for this function
-        message = create_store(self.node, key, value)
-        future = self.send(message, remote)
-        result = await future
-        return  # TODO: look at and verify the result
-

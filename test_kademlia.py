@@ -65,7 +65,7 @@ async def test_store():
 
     await asyncio.wait_for(node.store_value(key=ID(0b1010), value=b'hello'), timeout=0.1)
 
-    storage = lambda server: server.protocol.storage
+    storage = lambda server: server.storage
 
     assert 0b1010 in storage(third)
     assert 0b1010 in storage(second)
@@ -90,7 +90,7 @@ async def test_value_lookup():
     first.table.node_seen(second.node)
     second.table.node_seen(third.node)
 
-    third.protocol.storage[0b100] = b'hello'
+    third.storage[0b100] = b'hello'
 
     result = await asyncio.wait_for(node.find_value(ID(0b100)), timeout=0.1)
     assert result == b'hello'
