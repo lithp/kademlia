@@ -242,9 +242,7 @@ async def test_responds_to_store():
     assert response.nonce == request.nonce
     assert response.HasField('storeResponse')
 
-    # TODO: this is a horrible smell, put storage somewhere better!
-    storage = server.storage
-    assert 0b100 in storage
+    assert 0b100 in server.storage
     assert storage[0b100] == b'abc'
 
 @pytest.mark.asyncio

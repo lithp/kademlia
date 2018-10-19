@@ -24,7 +24,8 @@ class Node():
 
     async def _refresh(self, bucket: int):
         '''
-        Runs when we haven't heard from any of the nodes in this bucket for over an hour
+        Should run when we haven't heard from any of the nodes in this bucket for over an
+        hour.
         '''
         nodeid: core.ID = core.random_key_in_bucket(self.nodeid, bucket)
         await self.server.node_lookup(nodeid)
@@ -45,8 +46,6 @@ class Node():
         await self.server.node_lookup(self.nodeid)
 
         # 3. refresh all buckets further away than our closest neighbor
-
-        # TODO: it's a smell that we have to dig so deeply to find the table
 
         # todo: 160*k requests is probably too many to send at once but this could
         #       definitely be parallelized at least a little
