@@ -314,9 +314,9 @@ async def test_responds_to_find_value_when_has_value():
 
 def test_parse_find_node_response():
     nodes = [core.Node(addr='localhost', port=i, nodeid=i) for i in range(5)]
+    build = protocol.MessageBuilder(nodes[0])
 
-    find_node_response = protocol.create_find_node_response(nodes[0], b'', nodes[0:])
-
+    find_node_response = build.find_node_response(b'', nodes[0:])
     parsed_nodes = protocol.parse_find_node_response(find_node_response)
 
     assert parsed_nodes == nodes[0:]

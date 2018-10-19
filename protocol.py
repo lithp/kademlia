@@ -53,6 +53,18 @@ def create_response(node: core.Node, request_nonce: bytes) -> Message:
     message.nonce = request_nonce
     return message
 
+class MessageBuilder:
+    def __init__(self, node: core.Node):
+        self.node = node
+    def find_node_response(self, nonce: bytes, nodes: typing.List[core.Node]):
+        message = create_response(self.node, nonce)
+        for node in nodes:
+            neighbor = message.findNodeResponse.neighbors.add()
+            neighbor.ip = node.addr
+            neighbor.port = node.port
+            neighbor.nodeid = write_nodeid(node.nodeid)
+        return message
+
 def create_find_node_response(
         node: core.Node, nonce: bytes, nodes: typing.List[core.Node]) -> Message:
     message = create_response(node, nonce)
@@ -122,6 +134,7 @@ class Protocol(asyncio.DatagramProtocol):
 
         # TODO: figure out a better place to put this
         self.storage: typing.Dict[bytes, bytes] = dict()
+        self.build = MessageBuilder(self.node)
 
     def connection_made(self, transport):
         self.transport = transport
@@ -207,7 +220,7 @@ class Protocol(asyncio.DatagramProtocol):
         targetnodeid: int = read_nodeid(request.findNode.key)
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
-        response = create_find_node_response(self.node, request.nonce, closest)
+        response = self.build.find_node_response(request.nonce, closest)
         self._respond(request, response)
 
     def find_value_received(self, request):
