@@ -4,6 +4,7 @@ import pytest
 
 import kademlia
 import protocol
+from core import ID
 
 
 @pytest.mark.asyncio
@@ -49,9 +50,9 @@ async def test_store():
     node = kademlia.Node('localhost', 3000)
     await node.listen()
 
-    first = protocol.Server(k=2, mynodeid=0b1000)
-    second = protocol.Server(k=2, mynodeid=0b1001)
-    third = protocol.Server(k=2, mynodeid=0b1010)
+    first = protocol.Server(k=2, mynodeid=ID(0b1000))
+    second = protocol.Server(k=2, mynodeid=ID(0b1001))
+    third = protocol.Server(k=2, mynodeid=ID(0b1010))
 
     await first.listen(3001)
     await second.listen(3002)
@@ -76,9 +77,9 @@ async def test_value_lookup():
     node = kademlia.Node('localhost', 3000)
     await node.listen()
 
-    first = protocol.Server(k=2, mynodeid=0b1000)
-    second = protocol.Server(k=2, mynodeid=0b1001)
-    third = protocol.Server(k=2, mynodeid=0b1010)
+    first = protocol.Server(k=2, mynodeid=ID(0b1000))
+    second = protocol.Server(k=2, mynodeid=ID(0b1001))
+    third = protocol.Server(k=2, mynodeid=ID(0b1010))
 
     await first.listen(3001)
     await second.listen(3002)

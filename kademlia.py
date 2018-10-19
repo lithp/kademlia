@@ -13,7 +13,7 @@ class Node():
         self.nodeid = core.ID()
 
         self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid.value)
-        self.server = protocol.Server(k, self.nodeid.value)
+        self.server = protocol.Server(k, self.nodeid)
 
     async def listen(self):
         await self.server.listen(self.port)

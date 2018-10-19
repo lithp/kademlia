@@ -238,15 +238,15 @@ class Protocol(asyncio.DatagramProtocol):
 
 
 class Server:
-    def __init__(self, k: int, mynodeid: int):
+    def __init__(self, k: int, mynodeid: core.ID):
         self.transport = None
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
 
-        self.table = core.RoutingTable(k, mynodeid)
+        self.table = core.RoutingTable(k, mynodeid.value)
 
         self.k = k
         self.node = None
-        self.nodeid = mynodeid
+        self.nodeid = mynodeid.value
 
     async def listen(self, port):
         loop = asyncio.get_running_loop()
