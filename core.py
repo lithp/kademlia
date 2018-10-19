@@ -30,9 +30,6 @@ class ID:
         assert(as_int.bit_length() <= 160)
         return cls(as_int)
 
-    def as_bitstring(self) -> str:
-        return f"{self.value:0160b}"
-
     def to_bytes(self) -> bytes:
         return self.value.to_bytes(20, byteorder='big')
     def distance(self, other: ID) -> int:
