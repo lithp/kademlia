@@ -81,20 +81,20 @@ async def test_nonce_matching():
     server = protocol.Server(k=2, mynodeid=ID(100))
     await server.listen(3000)
 
-    ping_message = protocol.create_ping(local_node)
+    ping_message = messages.Ping().finalize(local_node)
     future = server.send(ping_message, remote_node)
 
     await asyncio.sleep(0.1)
     assert not future.done()  # we have not yet sent the message
 
-    pong_message = protocol.create_pong(remote_node, ping_message.nonce)
+    pong_message = messages.Pong(ping_message.nonce).finalize(remote_node)
     pong_message.nonce = b'garbage'
     mockserver.send(pong_message)
 
     await asyncio.sleep(0.1)
     assert not future.done()  # we sent a message with the wrong nonce
 
-    pong_message = protocol.create_pong(remote_node, ping_message.nonce)
+    pong_message = messages.Pong(ping_message.nonce).finalize(remote_node)
     mockserver.send(pong_message)
 
     # we sent a conforming PONG, the future should now be set!
@@ -115,7 +115,7 @@ async def test_incoming_messages_notify_routing_table():
 
     # 2. Send it a PONG
     remote_node = core.Node(addr='localhost', port=3001, nodeid=remoteid)
-    pong_message = protocol.create_pong(remote_node, b'garbage')
+    pong_message = messages.Pong(b'garbage').finalize(remote_node)
     mockserver.send(pong_message)
 
     # 3. Look for the node in the routing table
@@ -143,7 +143,7 @@ async def test_server_send():
 
     future = mockserver.next_message_future()
 
-    message = protocol.create_ping(local_node)
+    message = messages.Ping().finalize(local_node)
     server.send(message, remote_node)
 
     await future
@@ -173,7 +173,7 @@ async def test_server_ping():
     assert len(mockserver.messages) == 1
     ping_message = mockserver.messages[0]
 
-    pong_message = protocol.create_pong(remote_node, ping_message.nonce)
+    pong_message = messages.Pong(ping_message.nonce).finalize(remote_node)
     mockserver.send(pong_message)
 
     # now that we've sent a PONG it should be unblocked
@@ -191,7 +191,7 @@ async def test_response_to_ping():
     future = mockserver.next_message_future()
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
-    ping = protocol.create_ping(remote_node)
+    ping = messages.Ping().finalize(remote_node)
     mockserver.send(ping)
 
     # we've sent a ping to the local node, once we give it a chance to run it should send
@@ -217,7 +217,7 @@ async def test_responds_to_find_node():
 
     # Ask it for some random node
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
-    request = protocol.create_find_node(remote_node, targetnodeid=ID(0b10000))
+    request = messages.FindNode(ID(0b10000)).finalize(remote_node)
     mockserver.send(request)
 
     # We should get a response back!

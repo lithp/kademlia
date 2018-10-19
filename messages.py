@@ -35,3 +35,42 @@ class FindNodeResponse(Response):
             neighbor.ip = node.addr
             neighbor.port = node.port
             neighbor.nodeid = node.nodeid.to_bytes()
+
+# if there was ever a time for metaclasses
+
+class FindNode(Message):
+    def __init__(self, targetnodeid: core.ID):
+        super().__init__()
+        self.message.findNode.key = targetnodeid.to_bytes()
+
+class Ping(Message):
+    def __init__(self):
+        super().__init__()
+        self.message.ping.SetInParent()
+
+class Pong(Response):
+    def __init__(self, nonce):
+        super().__init__(nonce)
+        self.message.pong.SetInParent()
+
+class StoreResponse(Response):
+    def __init__(self, nonce):
+        super().__init__(nonce)
+        self.message.storeResponse.SetInParent()
+
+class Store(Message):
+    def __init__(self, key: core.ID, value: bytes):
+        super().__init__()
+        self.message.store.key = key.to_bytes()
+        self.message.store.value = value
+
+class FoundValue(Response):
+    def __init__(self, nonce, key: core.ID, value: bytes):
+        super().__init__(nonce)
+        self.message.foundValue.key = key.to_bytes()
+        self.message.foundValue.value = value
+
+class FindValue(Message):
+    def __init__(self, nonce, key: core.ID):
+        super().__init__(nonce)
+        self.message.findValue.key = key.to_bytes()

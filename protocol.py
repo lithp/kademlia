@@ -53,16 +53,6 @@ def create_response(node: core.Node, request_nonce: bytes) -> Message:
     message.nonce = request_nonce
     return message
 
-def create_find_node(node: core.Node, targetnodeid: core.ID) -> Message:
-    message = create_message(node)
-    message.findNode.key = write_nodeid(targetnodeid)
-    return message
-
-def create_ping(node: core.Node) -> Message:
-    message = create_message(node)
-    message.ping.SetInParent()
-    return message
-
 def create_pong(node: core.Node, nonce: bytes) -> Message:
     message = create_response(node, nonce)
     message.pong.SetInParent()
@@ -284,7 +274,7 @@ class Server:
 
     @must_be_running
     async def ping(self, remote):
-        pingmsg = create_ping(self.node)
+        pingmsg = messages.Ping().finalize(self.node)
         future = self.send(pingmsg, remote)
         # TODO: timeout if this takes too long?
         # TODO: check that we were given back a pong?
@@ -293,7 +283,7 @@ class Server:
     @must_be_running
     async def find_node(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_NODE to remote and return the result'
-        message = create_find_node(self.node, targetnodeid)
+        message = messages.FindNode(targetnodeid).finalize(self.node)
         future = self.send(message, remote)
         result = await future
         # TODO: throw an error if we weren't given a FindNodeResponse
