@@ -7,6 +7,7 @@ import functools
 import hashlib
 import heapq
 import itertools
+import logging
 import queue
 import random
 import typing
@@ -16,6 +17,9 @@ import google.protobuf
 import core
 import messages
 from protobuf.rpc_pb2 import Message, Ping, Node as NodeProto
+
+
+logger = logging.getLogger('kademlia')
 
 
 class ValueFound(Exception):
@@ -44,8 +48,7 @@ class Protocol(asyncio.DatagramProtocol):
             protobuf = Message()
             protobuf.ParseFromString(data)
         except google.protobuf.message.DecodeError:
-            print(f"received malformed data from {addr}")
-            print(data)
+            logger.warning(f"received malformed data from {addr}")
             return
 
         message = messages.Message.parse_protobuf(protobuf)
@@ -62,7 +65,7 @@ class Protocol(asyncio.DatagramProtocol):
         if isinstance(message, messages.Response):
             nonce = message.nonce
             if nonce not in self.outstanding_requests:
-                print(f"received a message but the nonce is not recognized")
+                logger.warning(f"received malformed data from {addr}")
                 return
 
             future = self.outstanding_requests.pop(nonce)
@@ -164,19 +167,20 @@ class Server:
         self.transport.sendto(serialized, dest)
 
     def ping_received(self, message):
-        # TODO: turn this into a logging statement
-        print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
+        logger.debug(f'received a Ping from {message.sender.nodeid}, {message.sender.port}')
 
         ping = messages.Pong(message.nonce)
         self._respond(message, ping)
 
     def store_received(self, message):
+        logger.debug(f'received a Store from {message.sender.nodeid}, {message.sender.port}')
         self.storage[message.key.value] = message.value
 
         response = messages.StoreResponse(message.nonce)
         self._respond(message, response)
 
     def find_node_received(self, request):
+        logger.debug(f'received a FindNode from {request.sender.nodeid}, {request.sender.port}')
         # look in the table and return the nodes closest to the requested node
         targetnodeid: core.ID = request.key
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
@@ -185,6 +189,7 @@ class Server:
         self._respond(request, response)
 
     def find_value_received(self, request):
+        logger.debug(f'received a FindValue from {request.sender.nodeid}, {request.sender.port}')
         # if we have the value locally reply with a FoundValue
         targetkey: core.ID = request.key
         if targetkey.value in self.storage:
@@ -200,12 +205,15 @@ class Server:
     # Outbound RPCs
 
     @must_be_running
-    async def ping(self, addr, port: int):
+    async def ping(self, addr, port: int, timeout: int = None):
         pingmsg = messages.Ping()
         future = self.send_to(pingmsg, addr, port)
-        # TODO: timeout if this takes too long?
-        # TODO: check that we were given back a pong?
-        await future
+        result = None
+        if timeout is None:
+            result = await future
+        else:
+            result = await asyncio.wait_for(future, timeout=timeout)
+        assert isinstance(result, messages.Pong)
 
     @must_be_running
     async def find_node(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:

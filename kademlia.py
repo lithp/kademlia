@@ -1,13 +1,16 @@
-import ipaddress
-import typing
 import asyncio
+import logging
+import typing
 
 import core
 import protocol
 
 
+logger = logging.getLogger('kademlia')
+
+
 class Node():
-    def __init__(self, addr: core.Address, port: int, constants: core.Constants = None):
+    def __init__(self, addr: str, port: int, constants: core.Constants = None):
         self.constants = constants if constants is not None else core.Constants()
         self.addr = addr
         self.port = port
@@ -26,24 +29,27 @@ class Node():
         nodeid: core.ID = core.random_key_in_bucket(self.nodeid, bucket)
         await self.server.node_lookup(nodeid)
 
-    async def bootstrap(self, address: core.Address, port:int):
+    async def bootstrap(self, address: str, port:int):
         '''
         Given a node we should connect to, populate our routing table
         '''
 
-        # When the remote node responds it will be added to the relevant k-bucket
-        # TODO: handle timeouts!
-        # TODO: is this address type correct?
-        #       No, it certainly is not
-        await self.server.ping(address, port)
+        # 1. Add the remote node to our buckeet
+        try:
+            await self.server.ping(address, port, timeout=10)
+        except asyncio.TimeoutError:
+            logger.error('cannot bootstrap, the remote node did not respond')
+            return
 
-        # perform a node lookup for your own ID
+        # 2. perform a node lookup for your own ID
         await self.server.node_lookup(self.nodeid)
 
-        # refresh all buckets further away than our closest neighbor
+        # 3. refresh all buckets further away than our closest neighbor
 
         # TODO: it's a smell that we have to dig so deeply to find the table
-        # TODO: it's probably safe to do these in parallel?
+
+        # todo: 160*k requests is probably too many to send at once but this could
+        #       definitely be parallelized at least a little
         closest = self.server.table.first_occupied_bucket()
         for index in range(closest, 160):
             await self._refresh(index)
