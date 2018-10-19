@@ -12,17 +12,6 @@ from protobuf.rpc_pb2 import Message
 ID = core.ID
 
 
-def test_read_write_nodeid():
-    involve = lambda i: protocol.read_nodeid(protocol.write_nodeid(i))
-
-    for i in range(100):
-        assert ID(i) == involve(ID(i))
-
-    nodeid = ID(2**160 - 1)
-    assert protocol.write_nodeid(nodeid) == b'\xff'*20
-    assert nodeid == involve(nodeid)
-
-
 class RecordingDatagramProtocol(asyncio.DatagramProtocol):
     def __init__(self):
         self.messages = list()
@@ -200,7 +189,7 @@ async def test_response_to_ping():
     assert pong.nonce == ping.nonce
     assert pong.sender.ip == 'localhost'
     assert pong.sender.port == 3000
-    assert pong.sender.nodeid == protocol.write_nodeid(ID(0b1000))
+    assert pong.sender.nodeid == ID(0b1000).to_bytes()
 
 @pytest.mark.asyncio
 async def test_responds_to_find_node():
@@ -226,7 +215,7 @@ async def test_responds_to_find_node():
     assert response.nonce == request.nonce
     assert len(response.findNodeResponse.neighbors) == 1
 
-    node = protocol.read_node(response.findNodeResponse.neighbors[0])
+    node = messages.Message._parse_node(response.findNodeResponse.neighbors[0])
     assert node == remote_node
 
 @pytest.mark.asyncio
@@ -307,7 +296,7 @@ async def test_responds_to_find_value_when_has_value():
     response = mockserver.messages[1]
     assert response.nonce == request.nonce
     assert response.HasField('foundValue')
-    assert response.foundValue.key == protocol.write_nodeid(ID(0b100))
+    assert response.foundValue.key == ID(0b100).to_bytes()
     assert response.foundValue.value == b'abc'
 
 @pytest.mark.asyncio

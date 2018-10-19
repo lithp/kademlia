@@ -17,26 +17,11 @@ import core
 import messages
 from protobuf.rpc_pb2 import Message, Ping, Node as NodeProto
 
-def isresponse(message):
-    responses = ['pong', 'storeResponse', 'findNodeResponse', 'foundValue']
-    return any(message.HasField(response) for response in responses)
-
-def read_nodeid(asbytes: bytes) -> core.ID:
-    return core.ID.from_bytes(asbytes)
-
-def write_nodeid(nodeid: core.ID) -> bytes:
-    return nodeid.to_bytes()
-
-def read_node(node: NodeProto) -> core.Node:
-    return core.Node(
-        addr=node.ip,
-        port=node.port,
-        nodeid=read_nodeid(node.nodeid)
-    )
 
 class ValueFound(Exception):
     def __init__(self, value: bytes):
         self.value = value
+
 
 class Protocol(asyncio.DatagramProtocol):
 

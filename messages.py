@@ -30,7 +30,7 @@ class Message:
         return message
 
     @staticmethod
-    def _parse_sender(sender):
+    def _parse_node(sender: proto.Node) -> core.Node:
         return core.Node(
             addr=sender.ip,
             port=sender.port,
@@ -43,7 +43,7 @@ class Message:
             if protobuf.HasField(fieldName):
                 result = fieldClass._from_proto(protobuf)
                 result.nonce = protobuf.nonce
-                result.sender = cls._parse_sender(protobuf.sender)
+                result.sender = cls._parse_node(protobuf.sender)
                 return result
         raise ValueError(f'did not recognize {proto}')
 

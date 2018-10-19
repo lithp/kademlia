@@ -5,6 +5,17 @@ import typing
 from core import *
 
 
+def test_read_write_nodeid():
+    involve = lambda i: ID.from_bytes(i.to_bytes())
+
+    for i in range(100):
+        assert ID(i) == involve(ID(i))
+
+    nodeid = ID(2**160 - 1)
+    assert nodeid.to_bytes() == b'\xff'*20
+    assert nodeid == involve(nodeid)
+
+
 def test_newnonce():
     nonce = newnonce()
     assert len(nonce) == 20
