@@ -49,3 +49,26 @@ async def test_store():
     assert 0b1010 in storage(second)
     assert 0b1010 not in storage(first)  # first is not in the first k peers
 
+
+@pytest.mark.asyncio
+async def test_value_lookup():
+    node = kademlia.Node('localhost', 3000)
+    await node.listen()
+
+    first = protocol.Server(k=2, mynodeid=0b1000)
+    second = protocol.Server(k=2, mynodeid=0b1001)
+    third = protocol.Server(k=2, mynodeid=0b1010)
+
+    await first.listen(3001)
+    await second.listen(3002)
+    await third.listen(3003)
+
+    await node.bootstrap('localhost', 3001)
+
+    first.table.node_seen(second.node)
+    second.table.node_seen(third.node)
+
+    third.protocol.storage[0b100] = b'hello'
+
+    result = await asyncio.wait_for(node.find_value(0b100), timeout=0.1)
+    assert result == b'hello'
