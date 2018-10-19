@@ -189,8 +189,9 @@ class Server:
 
     # Incoming RPCs
 
-    def _respond(self, request, response):
-        serialized = response.SerializeToString()
+    def _respond(self, request, response: messages.Message):
+        finalized = response.finalize(self.node)
+        serialized = finalized.SerializeToString()
         dest = (request.sender.ip, request.sender.port)
         self.transport.sendto(serialized, dest)
 
@@ -198,13 +199,13 @@ class Server:
         # TODO: turn this into a logging statement
         print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
 
-        ping = messages.Pong(message.nonce).finalize(self.node)
+        ping = messages.Pong(message.nonce)
         self._respond(message, ping)
 
     def store_received(self, message):
         self.storage[read_nodeid(message.store.key).value] = message.store.value
 
-        response = messages.StoreResponse(message.nonce).finalize(self.node)
+        response = messages.StoreResponse(message.nonce)
         self._respond(message, response)
 
     def find_node_received(self, request):
@@ -212,7 +213,7 @@ class Server:
         targetnodeid: core.ID = read_nodeid(request.findNode.key)
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
-        response = messages.FindNodeResponse(request.nonce, closest).finalize(self.node)
+        response = messages.FindNodeResponse(request.nonce, closest)
         self._respond(request, response)
 
     def find_value_received(self, request):
@@ -221,7 +222,7 @@ class Server:
         if targetkey.value in self.storage:
             response = messages.FoundValue(
                 request.nonce, targetkey, self.storage[targetkey.value]
-            ).finalize(self.node)
+            )
             self._respond(request, response)
             return
 
