@@ -17,9 +17,6 @@ import core
 import messages
 from protobuf.rpc_pb2 import Message, Ping, Node as NodeProto
 
-def newnonce():
-    return random.getrandbits(160).to_bytes(20, byteorder='big')
-
 def isresponse(message):
     responses = ['pong', 'storeResponse', 'findNodeResponse', 'foundValue']
     return any(message.HasField(response) for response in responses)

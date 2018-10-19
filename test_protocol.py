@@ -12,11 +12,6 @@ from protobuf.rpc_pb2 import Message
 ID = core.ID
 
 
-def test_newnonce():
-    nonce = protocol.newnonce()
-    assert len(nonce) == 20
-
-
 def test_read_write_nodeid():
     involve = lambda i: protocol.read_nodeid(protocol.write_nodeid(i))
 

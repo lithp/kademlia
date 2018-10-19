@@ -5,6 +5,11 @@ import typing
 from core import *
 
 
+def test_newnonce():
+    nonce = newnonce()
+    assert len(nonce) == 20
+
+
 def test_bucket_ranges():
     assert bucket_ranges(0) == (1, 1)
     assert bucket_ranges(1) == (2, 3)

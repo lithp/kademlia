@@ -11,6 +11,9 @@ import typing
 
 Address = typing.Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 
+def newnonce():
+    return random.getrandbits(160).to_bytes(20, byteorder='big')
+
 def _new_node_id() -> int:
     'a random nodeid from [0, 2^160-1]'
     nodeid = random.getrandbits(160)
