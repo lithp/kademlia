@@ -161,21 +161,14 @@ class Server:
     def received_rpc(self, message):
         if isinstance(message, messages.FindNode):
             self.find_node_received(message)
-            return
-
-        if isinstance(message, messages.Ping):
+        elif isinstance(message, messages.Ping):
             self.ping_received(message)
-            return
-
-        if isinstance(message, messages.Store):
+        elif isinstance(message, messages.Store):
             self.store_received(message)
-            return
-
-        if isinstance(message, messages.FindValue):
+        elif isinstance(message, messages.FindValue):
             self.find_value_received(message)
-            return
-
-        assert False, 'an unexpected message type was received'
+        else:
+            assert False, 'an unexpected message type was received'
 
     # Incoming RPCs
 
