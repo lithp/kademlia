@@ -1,5 +1,5 @@
 # kademlia
-An implementation of Kademlia (S/Kademlia eventually)
+An implementation of Kademlia
 
 # Usage
 
