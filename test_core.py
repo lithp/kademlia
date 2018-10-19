@@ -12,12 +12,12 @@ def test_bucket_ranges():
     assert bucket_ranges(3) == (8, 15)
 
 def test_random_key_in_bucket():
-    myid = 0b10000
+    myid = ID(0b10000)
     bucket = 4
-    one_hundred_samples = [random_key_in_bucket(myid, bucket) for _ in range(100)]
+    two = [random_key_in_bucket(myid, bucket).value for _ in range(200)]
     for i in range(0, 15):
         # assert that we've returned everything in the requested bucket at least once
-        assert i in one_hundred_samples
+        assert i in two
 
 def test_bucket_index_for():
     nodeid = 0b1000

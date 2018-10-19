@@ -48,11 +48,11 @@ def bucket_ranges(bucket_index: int) -> typing.Tuple[int, int]:
         (2**(bucket_index+1)) - 1
     )
 
-def random_key_in_bucket(myid: int, bucket_index: int) -> int:
+def random_key_in_bucket(myid: ID, bucket_index: int) -> ID:
     'Returns a random key which belongs in the given bucket'
     distances = bucket_ranges(bucket_index) # everything in the bucket is this far from us
     distance = random.randrange(*distances)
-    return myid ^ distance
+    return ID(myid.value ^ distance)
 
 class Node(typing.NamedTuple):
     addr: Address

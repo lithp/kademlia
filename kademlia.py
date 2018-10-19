@@ -22,8 +22,8 @@ class Node():
         '''
         Runs when we haven't heard from any of the nodes in this bucket for over an hour
         '''
-        nodeid = core.random_key_in_bucket(self.nodeid.value, bucket)
-        await self.server.node_lookup(nodeid)
+        nodeid: core.ID = core.random_key_in_bucket(self.nodeid, bucket)
+        await self.server.node_lookup(nodeid.value)
 
     async def bootstrap(self, address: core.Address, port:int):
         '''
