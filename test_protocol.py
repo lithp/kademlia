@@ -4,6 +4,7 @@ import pytest
 import random
 
 import core
+import messages
 import protocol
 
 from protobuf.rpc_pb2 import Message
@@ -316,9 +317,8 @@ async def test_responds_to_find_value_when_has_value():
 
 def test_parse_find_node_response():
     nodes = [core.Node(addr='localhost', port=i, nodeid=ID(i)) for i in range(5)]
-    build = protocol.MessageBuilder(nodes[0])
 
-    find_node_response = build.find_node_response(b'', nodes[0:])
+    find_node_response = messages.FindNodeResponse(b'', nodes[0:]).finalize(nodes[0])
     parsed_nodes = protocol.parse_find_node_response(find_node_response)
 
     assert parsed_nodes == nodes[0:]
@@ -338,9 +338,7 @@ async def test_sending_find_node_response():
     future = mockserver.next_message_future()
     def respond(future):
         request = future.result()
-        response = protocol.create_find_node_response(
-            remote, request.nonce, nodes
-        )
+        response = messages.FindNodeResponse(request.nonce, nodes).finalize(remote)
         mockserver.send(response)
     future.add_done_callback(respond)
 

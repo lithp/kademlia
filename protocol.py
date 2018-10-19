@@ -14,6 +14,7 @@ import typing
 import google.protobuf
 
 import core
+import messages
 from protobuf.rpc_pb2 import Message, Ping, Node as NodeProto
 
 def newnonce():
@@ -50,28 +51,6 @@ def create_message(node: core.Node) -> Message:
 def create_response(node: core.Node, request_nonce: bytes) -> Message:
     message = create_message(node)
     message.nonce = request_nonce
-    return message
-
-class MessageBuilder:
-    def __init__(self, node: core.Node):
-        self.node = node
-    def find_node_response(self, nonce: bytes, nodes: typing.List[core.Node]):
-        message = create_response(self.node, nonce)
-        for node in nodes:
-            neighbor = message.findNodeResponse.neighbors.add()
-            neighbor.ip = node.addr
-            neighbor.port = node.port
-            neighbor.nodeid = write_nodeid(node.nodeid)
-        return message
-
-def create_find_node_response(
-        node: core.Node, nonce: bytes, nodes: typing.List[core.Node]) -> Message:
-    message = create_response(node, nonce)
-    for node in nodes:
-        neighbor = message.findNodeResponse.neighbors.add()
-        neighbor.ip = node.addr
-        neighbor.port = node.port
-        neighbor.nodeid = write_nodeid(node.nodeid)
     return message
 
 def create_find_node(node: core.Node, targetnodeid: core.ID) -> Message:
@@ -131,7 +110,6 @@ class Protocol(asyncio.DatagramProtocol):
         self.table = table
         self.node = node
 
-        self.build = MessageBuilder(self.node)
         self.rpc_hook = rpc_hook
 
     def connection_made(self, transport):
@@ -195,7 +173,6 @@ class Server:
         local_addr = ('localhost', port)
 
         self.node = core.Node(addr='localhost', port=port, nodeid=self.nodeid)
-        self.build = MessageBuilder(self.node)
 
         endpoint = loop.create_datagram_endpoint(
             lambda: Protocol(self.table, self.node, self.received_rpc),
@@ -287,7 +264,7 @@ class Server:
         targetnodeid: core.ID = read_nodeid(request.findNode.key)
         closest: typing.List[core.Node] = self.table.closest(targetnodeid)
 
-        response = self.build.find_node_response(request.nonce, closest)
+        response = messages.FindNodeResponse(request.nonce, closest).finalize(self.node)
         self._respond(request, response)
 
     def find_value_received(self, request):
