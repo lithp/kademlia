@@ -23,7 +23,7 @@ class Node():
         Runs when we haven't heard from any of the nodes in this bucket for over an hour
         '''
         nodeid: core.ID = core.random_key_in_bucket(self.nodeid, bucket)
-        await self.server.node_lookup(nodeid.value)
+        await self.server.node_lookup(nodeid)
 
     async def bootstrap(self, address: core.Address, port:int):
         '''
@@ -39,7 +39,7 @@ class Node():
         await self.server.ping(remote)
 
         # perform a node lookup for your own ID
-        await self.server.node_lookup(self.nodeid.value)
+        await self.server.node_lookup(self.nodeid)
 
         # refresh all buckets further away than our closest neighbor
 
@@ -51,7 +51,7 @@ class Node():
 
     async def store_value(self, key: int, value: bytes):
         'Find the k closest nodes and send a STORE RPC to all of them'
-        closest_nodes = await self.server.node_lookup(key)
+        closest_nodes = await self.server.node_lookup(core.ID(key))
 
         # todo: timeouts
         coros = [

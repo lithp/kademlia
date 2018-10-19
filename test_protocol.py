@@ -359,7 +359,7 @@ async def test_node_lookup_no_peers():
     server = protocol.Server(k=2, mynodeid=ID(0b1000))
     await server.listen(3000)
 
-    await server.node_lookup(0b1010)
+    await server.node_lookup(ID(0b1010))
 
 
 @pytest.mark.asyncio
@@ -373,7 +373,7 @@ async def test_node_lookup_one_empty_peer():
 
     server.table.node_seen(remote.node)
 
-    await server.node_lookup(0b1010)
+    await server.node_lookup(ID(0b1010))
 
 
 @pytest.mark.asyncio
@@ -403,7 +403,7 @@ async def test_node_lookup_finds_peer_through_peers():
     with pytest.raises(KeyError):
         server.table.last_seen_for(second_hop.node.nodeid)
 
-    await server.node_lookup(targetid)
+    await server.node_lookup(ID(targetid))
 
     assert server.table.last_seen_for(second_hop.node.nodeid) is not None
     assert server.table.last_seen_for(targetid) is not None

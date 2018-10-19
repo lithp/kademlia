@@ -301,8 +301,8 @@ class Server:
         # TODO: check that we were given back a pong?
         await future
 
-    async def node_lookup(self, targetnodeid: int) -> typing.List[core.Node]:
-        return await self._lookup(targetnodeid, looking_for_value=False)
+    async def node_lookup(self, targetnodeid: core.ID) -> typing.List[core.Node]:
+        return await self._lookup(targetnodeid.value, looking_for_value=False)
 
     async def value_lookup(self, targetnodeid: int):
         try:
