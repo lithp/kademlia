@@ -37,52 +37,9 @@ def read_node(node: NodeProto) -> core.Node:
         nodeid=read_nodeid(node.nodeid)
     )
 
-def create_message(node: core.Node) -> Message:
-    message = Message()
-
-    message.sender.ip = node.addr
-    message.sender.port = node.port
-    message.sender.nodeid = write_nodeid(node.nodeid)
-
-    message.nonce = newnonce()
-
-    return message
-
-def create_response(node: core.Node, request_nonce: bytes) -> Message:
-    message = create_message(node)
-    message.nonce = request_nonce
-    return message
-
-def create_pong(node: core.Node, nonce: bytes) -> Message:
-    message = create_response(node, nonce)
-    message.pong.SetInParent()
-    return message
-
-def create_store_response(node: core.Node, nonce: bytes) -> Message:
-    message = create_response(node, nonce)
-    message.storeResponse.SetInParent()
-    return message
-
-def create_store(node: core.Node, key: core.ID, value: bytes) -> Message:
-    message = create_message(node)
-    message.store.key = write_nodeid(key)
-    message.store.value = value
-    return message
-
-def create_found_value(node: core.Node, nonce: bytes, key: core.ID, value: bytes) -> Message:
-    message = create_response(node, nonce)
-    message.foundValue.key = write_nodeid(key)
-    message.foundValue.value = value
-    return message
-
 class ValueFound(Exception):
     def __init__(self, value: bytes):
         self.value = value
-
-def create_find_value(node: core.Node, key: core.ID) -> Message:
-    message = create_message(node)
-    message.findValue.key = write_nodeid(key)
-    return message
 
 def parse_find_node_response(response: Message) -> typing.List[core.Node]:
     return [
@@ -240,13 +197,13 @@ class Server:
         # TODO: turn this into a logging statement
         print(f'received a ping from {message.sender.nodeid}, {message.sender.port}')
 
-        ping = create_pong(self.node, message.nonce)
+        ping = messages.Pong(message.nonce).finalize(self.node)
         self._respond(message, ping)
 
     def store_received(self, message):
         self.storage[read_nodeid(message.store.key).value] = message.store.value
 
-        response = create_store_response(self.node, message.nonce)
+        response = messages.StoreResponse(message.nonce).finalize(self.node)
         self._respond(message, response)
 
     def find_node_received(self, request):
@@ -261,9 +218,9 @@ class Server:
         # if we have the value locally reply with a FoundValue
         targetkey: core.ID = read_nodeid(request.findValue.key)
         if targetkey.value in self.storage:
-            response = create_found_value(
-                self.node, request.nonce, targetkey, self.storage[targetkey.value]
-            )
+            response = messages.FoundValue(
+                request.nonce, targetkey, self.storage[targetkey.value]
+            ).finalize(self.node)
             self._respond(request, response)
             return
 
@@ -292,7 +249,7 @@ class Server:
     @must_be_running
     async def find_value(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_VALUE to remote and return the result'
-        message = create_find_value(self.node, targetnodeid)
+        message = messages.FindValue(targetnodeid).finalize(self.node)
         future = self.send(message, remote)
         result = await future
         if result.HasField('foundValue'):
@@ -302,7 +259,7 @@ class Server:
     @must_be_running
     async def store(self, remote: core.Node, key: core.ID, value: bytes):
         # todo: write a test for this function
-        message = create_store(self.node, key, value)
+        message = messages.Store(key, value).finalize(self.node)
         future = self.send(message, remote)
         result = await future
         return  # TODO: look at and verify the result

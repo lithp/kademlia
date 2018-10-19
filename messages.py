@@ -71,6 +71,6 @@ class FoundValue(Response):
         self.message.foundValue.value = value
 
 class FindValue(Message):
-    def __init__(self, nonce, key: core.ID):
-        super().__init__(nonce)
+    def __init__(self, key: core.ID):
+        super().__init__()
         self.message.findValue.key = key.to_bytes()

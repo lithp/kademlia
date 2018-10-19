@@ -245,7 +245,7 @@ async def test_responds_to_store():
     # Ask it for some random node
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
 
-    request = protocol.create_store(remote_node, key=ID(0b100), value=b'abc')
+    request = messages.Store(key=ID(0b100), value=b'abc').finalize(remote_node)
     mockserver.send(request)
 
     # We should get a response back!
@@ -272,7 +272,7 @@ async def test_responds_to_find_value_when_no_value():
     await server.listen(3000)
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
-    request = protocol.create_find_value(remote_node, key=ID(0b100))
+    request = messages.FindValue(ID(0b100)).finalize(remote_node)
     mockserver.send(request)
 
     # We should get a response back!
@@ -295,14 +295,14 @@ async def test_responds_to_find_value_when_has_value():
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
 
-    request = protocol.create_store(remote_node, key=ID(0b100), value=b'abc')
+    request = messages.Store(key=ID(0b100), value=b'abc').finalize(remote_node)
     mockserver.send(request)
 
     assert len(mockserver.messages) == 0
     await asyncio.wait_for(mockserver.next_message_future(), timeout=0.1)
     assert len(mockserver.messages) == 1
 
-    request = protocol.create_find_value(remote_node, key=ID(0b100))
+    request = messages.FindValue(ID(0b100)).finalize(remote_node)
     mockserver.send(request)
 
     await asyncio.wait_for(mockserver.next_message_future(), timeout=0.1)
