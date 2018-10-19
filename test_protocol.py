@@ -243,7 +243,7 @@ async def test_responds_to_store():
     assert response.HasField('storeResponse')
 
     assert 0b100 in server.storage
-    assert storage[0b100] == b'abc'
+    assert server.storage[0b100] == b'abc'
 
 @pytest.mark.asyncio
 async def test_responds_to_find_value_when_no_value():

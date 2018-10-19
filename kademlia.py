@@ -65,5 +65,8 @@ class Node():
         await asyncio.gather(*coros)
 
     async def find_value(self, key: core.ID):
-        "Perform a node lookup but send FIND_VALUE messages, and stop once it's found"
+        '''
+        Perform a node lookup but send FIND_VALUE messages, and stop once we've found the
+        value.
+        '''
         return await self.server.value_lookup(key)
