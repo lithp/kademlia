@@ -62,7 +62,7 @@ async def test_nonce_matching():
     local_node = core.Node(addr='localhost', port=3000, nodeid=ID(100))
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(110))
 
-    server = protocol.Server(k=2, mynodeid=ID(100))
+    server = protocol.Server(mynodeid=ID(100))
     await server.listen('localhost', 3000)
 
     ping_message = messages.Ping()
@@ -92,7 +92,7 @@ async def test_incoming_messages_notify_routing_table():
     mockserver = await startmockserver(3000)
 
     # 1. Start an empty server
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     remoteid = ID(0b1001)
@@ -116,7 +116,7 @@ async def test_server_send():
     '''
     mockserver = await startmockserver(3000)
 
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     local_node = core.Node(addr='localhost', port=3000, nodeid=ID(0b1000))
@@ -142,7 +142,7 @@ async def test_server_ping():
     '''
     mockserver = await startmockserver(3000)
 
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
@@ -169,7 +169,7 @@ async def test_response_to_ping():
     'When you run a Server and send it a PING it responds with a PONG'
     mockserver = await startmockserver(3000)
 
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     future = mockserver.next_message_future()
@@ -196,7 +196,7 @@ async def test_responds_to_find_node():
     'When you run a Server and send it FIND_NODE it gives you all it has'
     mockserver = await startmockserver(3000)
 
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     # Ask it for some random node
@@ -223,7 +223,7 @@ async def test_responds_to_store():
     'When you run a Server and send it STORE it responds and also stores'
     mockserver = await startmockserver(3000)
 
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     # Ask it for some random node
@@ -252,7 +252,7 @@ async def test_responds_to_find_value_when_no_value():
     'When you run a Server and send it just FIND_VALUE it gives you nearby nodes'
     mockserver = await startmockserver(3000)
 
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
@@ -274,7 +274,7 @@ async def test_responds_to_find_value_when_has_value():
     'When you run a Server and send it STORE / FIND_VALUE it gives you the value'
     mockserver = await startmockserver(3000)
 
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     remote_node = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
@@ -302,7 +302,7 @@ async def test_responds_to_find_value_when_has_value():
 @pytest.mark.asyncio
 async def test_sending_find_node_response():
     # start our server
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     remote = core.Node(addr='localhost', port=3001, nodeid=ID(0b1001))
@@ -330,7 +330,7 @@ async def test_sending_find_node_response():
 @pytest.mark.asyncio
 async def test_node_lookup_no_peers():
     'Nothing strange happens when there are no remote nodes'
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
     await server.node_lookup(ID(0b1010))
@@ -339,10 +339,10 @@ async def test_node_lookup_no_peers():
 @pytest.mark.asyncio
 async def test_node_lookup_one_empty_peer():
     'We know of one remote peer which knows of nobody'
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
-    remote = protocol.Server(k=2, mynodeid=ID(0b1001))
+    remote = protocol.Server(mynodeid=ID(0b1001))
     await remote.listen('localhost', 3001)
 
     server.table.node_seen(remote.node)
@@ -353,18 +353,18 @@ async def test_node_lookup_one_empty_peer():
 @pytest.mark.asyncio
 async def test_node_lookup_finds_peer_through_peers():
     'There exists 2 hops between us and the final peer'
-    server = protocol.Server(k=2, mynodeid=ID(0b1000))
+    server = protocol.Server(mynodeid=ID(0b1000))
     await server.listen('localhost', 3000)
 
-    first_hop = protocol.Server(k=2, mynodeid=ID(0b1001))
+    first_hop = protocol.Server(mynodeid=ID(0b1001))
     await first_hop.listen('localhost', 3001)
 
-    second_hop = protocol.Server(k=2, mynodeid=ID(0b1010))
+    second_hop = protocol.Server(mynodeid=ID(0b1010))
     await second_hop.listen('localhost', 3002)
 
     targetid = ID(0b1011)
 
-    final = protocol.Server(k=2, mynodeid=targetid)
+    final = protocol.Server(mynodeid=targetid)
     await final.listen('localhost', 3003)
 
     server.table.node_seen(first_hop.node)

@@ -5,15 +5,16 @@ import asyncio
 import core
 import protocol
 
+
 class Node():
-    def __init__(self, addr: core.Address, port: int, k: int = 8):
-        self.k = k  # the size of each k-bucket, use 1 if nodes will never fail
+    def __init__(self, addr: core.Address, port: int, constants: core.Constants = None):
+        self.constants = constants if constants is not None else core.Constants()
         self.addr = addr
         self.port = port
         self.nodeid = core.ID()
 
         self.node = core.Node(addr=addr, port=port, nodeid=self.nodeid)
-        self.server = protocol.Server(k, self.nodeid)
+        self.server = protocol.Server(self.nodeid, self.constants)
 
     async def listen(self):
         await self.server.listen(self.addr, self.port)

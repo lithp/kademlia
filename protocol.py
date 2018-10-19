@@ -79,14 +79,14 @@ class Protocol(asyncio.DatagramProtocol):
 
 
 class Server:
-    def __init__(self, k: int, mynodeid: core.ID):
+    def __init__(self, mynodeid: core.ID, constants: core.Constants = None):
         self.transport = None
         self.outstanding_requests: typing.Dict[bytes, asyncio.Future] = dict()
 
-        self.table = core.RoutingTable(k, mynodeid)
+        self.constants = constants if constants is not None else core.Constants()
+        self.table = core.RoutingTable(self.constants.k, mynodeid)
         self.storage: typing.Dict[int, bytes] = dict()
 
-        self.k = k
         self.node = None
         self.nodeid = mynodeid
 
@@ -261,9 +261,8 @@ class Server:
           from your list (until they do respond) and you continue until you've heard back
           from the k-closest nodes still in consideration
         '''
-        alpha = 3
         # start with the alpha nodes closest to me
-        to_query = self.table.closest_to_me(alpha)
+        to_query = self.table.closest_to_me(self.constants.alpha)
 
         queried = collections.defaultdict(lambda: False)
         seen_nodes = list()
@@ -284,12 +283,12 @@ class Server:
             seen_nodes = sorted(
                 itertools.chain(seen_nodes, new_nodes),
                 key=lambda node: node.nodeid.distance(targetnodeid)
-            )[:self.k]
+            )[:self.constants.k]
 
             # for the next round, send queries to alpha of the closest unqueried nodes
             to_query = list(itertools.islice(
                 (node for node in seen_nodes if node.nodeid not in queried),
-                alpha
+                self.constants.alpha
             ))
 
             # finish once you've queried all of the k closest nodes you know of

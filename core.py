@@ -11,14 +11,22 @@ import typing
 
 Address = typing.Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 
+
+class Constants(typing.NamedTuple):
+    alpha = 3
+    k = 2
+
+
 def newnonce():
     return random.getrandbits(160).to_bytes(20, byteorder='big')
+
 
 def _new_node_id() -> int:
     'a random nodeid from [0, 2^160-1]'
     nodeid = random.getrandbits(160)
     assert nodeid.bit_length() <= 160
     return nodeid
+
 
 @dataclasses.dataclass(order=True, frozen=True)
 class ID:
@@ -46,16 +54,19 @@ def bucket_ranges(bucket_index: int) -> typing.Tuple[int, int]:
         (2**(bucket_index+1)) - 1
     )
 
+
 def random_key_in_bucket(myid: ID, bucket_index: int) -> ID:
     'Returns a random key which belongs in the given bucket'
     distances = bucket_ranges(bucket_index) # everything in the bucket is this far from us
     distance = random.randrange(*distances)
     return ID(myid.value ^ distance)
 
+
 class Node(typing.NamedTuple):
     addr: Address
     port: int
     nodeid: ID
+
 
 class RoutingEntry(typing.NamedTuple):
     node: Node
@@ -65,12 +76,14 @@ class RoutingEntry(typing.NamedTuple):
         now = datetime.datetime.utcnow()
         return self._replace(last_seen=now)
 
+
 class NoRoomInBucket(Exception):
     '''
     Raised by RoutingTable.node_seen, indicates we should try to evict entry
     '''
     def __init__(self, entry: RoutingEntry):
         self.entry = entry
+
 
 class RoutingTable:
     Bucket = typing.MutableMapping[ID, RoutingEntry]  # Actually, an OrderedDict
