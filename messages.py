@@ -26,6 +26,10 @@ class Message:
         message.sender.ip = node.addr
         message.sender.port = node.port
         message.sender.nodeid = node.nodeid.to_bytes()
+
+        if hasattr(self, '_to_proto'):
+            self._to_proto(message)
+
         return message
 
     @classmethod
@@ -42,84 +46,81 @@ class FindNode(Message):
     field = 'findNode'
     key: core.ID
 
-    def __post_init__(self):
-        super().__post_init__()
-        self._message.findNode.key = self.key.to_bytes()
+    def _to_proto(self, stub):
+        stub.findNode.key = self.key.to_bytes()
 
     @classmethod
     def from_proto(cls, proto: proto.Message):
         return cls(key=core.ID.from_bytes(proto.findNode.key))
 
+@dataclasses.dataclass
 class Response(Message):
-    def __init__(self, nonce: bytes):
-        super().__init__()
-        self.nonce = nonce
+    nonce: bytes
 
+@dataclasses.dataclass
 class FindNodeResponse(Response):
-    def __init__(self, nonce, nodes: typing.List[core.Node]):
-        self.nodes = nodes
-        super().__init__(nonce)
+    field = 'findNodeResponse'
+    nodes: typing.List[core.Node]
 
-    def __post_init__(self):
-        super().__post_init__()
+    def _to_proto(self, stub):
         for node in self.nodes:
-            neighbor = self._message.findNodeResponse.neighbors.add()
+            neighbor = stub.findNodeResponse.neighbors.add()
             neighbor.ip = node.addr
             neighbor.port = node.port
             neighbor.nodeid = node.nodeid.to_bytes()
 
     @classmethod
-    def parse(message):
-        self.nodes = [
+    def from_proto(cls, proto: proto.Message):
+        return cls(proto.nonce, [
             core.Node(
                 addr=neighbor.ip,
                 port=neighbor.port,
-                nodeid=read_nodeid(neighbor.nodeid)
-            ) for neighbor in message.findNodeResponse.neighbors
-        ]
-
-# if there was ever a time for metaclasses
+                nodeid=core.ID.from_bytes(neighbor.nodeid)
+            ) for neighbor in proto.findNodeResponse.neighbors
+        ])
 
 class Ping(Message):
     field = 'ping'
 
-    def __init__(self):
-        super().__init__()
-        self._message.ping.SetInParent()
+    def _to_proto(self, stub):
+        stub.ping.SetInParent()
 
 class Pong(Response):
     field = 'pong'
 
-    def __init__(self, nonce):
-        super().__init__(nonce)
-        self._message.pong.SetInParent()
+    def _to_proto(self, stub):
+        stub.pong.SetInParent()
 
 class StoreResponse(Response):
     field = 'storeResponse'
 
-    def __init__(self, nonce):
-        super().__init__(nonce)
-        self._message.storeResponse.SetInParent()
+    def _to_proto(self, stub):
+        stub.storeResponse.SetInParent()
 
+@dataclasses.dataclass
 class Store(Message):
     field = 'store'
+    key: core.ID
+    value: bytes
 
-    def __init__(self, key: core.ID, value: bytes):
-        super().__init__()
-        self._message.store.key = key.to_bytes()
-        self._message.store.value = value
+    def _to_proto(self, stub):
+        stub.store.key = self.key.to_bytes()
+        stub.store.value = self.value
 
+@dataclasses.dataclass
 class FoundValue(Response):
     field = 'foundValue'
+    key: core.ID
+    value: bytes
 
-    def __init__(self, nonce, key: core.ID, value: bytes):
-        super().__init__(nonce)
-        self._message.foundValue.key = key.to_bytes()
-        self._message.foundValue.value = value
+    def _to_proto(self, stub):
+        stub.foundValue.key = self.key.to_bytes()
+        stub.foundValue.value = self.value
 
+@dataclasses.dataclass
 class FindValue(Message):
     field = 'findValue'
+    key: core.ID
 
-    def __init__(self, key: core.ID):
-        super().__init__()
-        self._message.findValue.key = key.to_bytes()
+    def _to_proto(self, stub):
+        stub.findValue.key = self.key.to_bytes()
