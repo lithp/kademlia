@@ -141,7 +141,7 @@ class Server:
             self.transport = None
 
     @must_be_running
-    def send(self, message, remote: core.Node):
+    def send(self, message: messages.Message, remote: core.Node):
         '''
         Sends the message and returns a future. The Future will be triggered when the
         remote node sends a response to this message.
@@ -160,6 +160,7 @@ class Server:
         addr = (remote.addr, remote.port)
 
         # TODO: where do we check that the message is not too large?
+        message = message.finalize(self.node)
         serialized = message.SerializeToString()
         self.transport.sendto(serialized, addr)
 
@@ -231,7 +232,7 @@ class Server:
 
     @must_be_running
     async def ping(self, remote):
-        pingmsg = messages.Ping().finalize(self.node)
+        pingmsg = messages.Ping()
         future = self.send(pingmsg, remote)
         # TODO: timeout if this takes too long?
         # TODO: check that we were given back a pong?
@@ -240,7 +241,7 @@ class Server:
     @must_be_running
     async def find_node(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_NODE to remote and return the result'
-        message = messages.FindNode(targetnodeid).finalize(self.node)
+        message = messages.FindNode(targetnodeid)
         future = self.send(message, remote)
         result = await future
         # TODO: throw an error if we weren't given a FindNodeResponse
@@ -249,7 +250,7 @@ class Server:
     @must_be_running
     async def find_value(self, remote: core.Node, targetnodeid: core.ID) -> typing.List[core.Node]:
         'Send a FIND_VALUE to remote and return the result'
-        message = messages.FindValue(targetnodeid).finalize(self.node)
+        message = messages.FindValue(targetnodeid)
         future = self.send(message, remote)
         result = await future
         if result.HasField('foundValue'):
@@ -259,7 +260,7 @@ class Server:
     @must_be_running
     async def store(self, remote: core.Node, key: core.ID, value: bytes):
         # todo: write a test for this function
-        message = messages.Store(key, value).finalize(self.node)
+        message = messages.Store(key, value)
         future = self.send(message, remote)
         result = await future
         return  # TODO: look at and verify the result

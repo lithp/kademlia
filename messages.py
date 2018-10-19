@@ -12,7 +12,7 @@ class Message:
         self.message.nonce = protocol.newnonce()
 
     @property
-    def nonce():
+    def nonce(self):
         return self.message.nonce
 
     def finalize(self, node: core.Node):

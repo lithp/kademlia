@@ -81,7 +81,7 @@ async def test_nonce_matching():
     server = protocol.Server(k=2, mynodeid=ID(100))
     await server.listen(3000)
 
-    ping_message = messages.Ping().finalize(local_node)
+    ping_message = messages.Ping()
     future = server.send(ping_message, remote_node)
 
     await asyncio.sleep(0.1)
@@ -143,7 +143,7 @@ async def test_server_send():
 
     future = mockserver.next_message_future()
 
-    message = messages.Ping().finalize(local_node)
+    message = messages.Ping()
     server.send(message, remote_node)
 
     await future
